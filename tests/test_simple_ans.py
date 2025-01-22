@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 from simple_ans import (
-    ans_encode_new as ans_encode,
-    ans_decode_new as ans_decode,
+    ans_encode,
+    ans_decode,
 )
 from simple_ans.EncodedSignal import EncodedSignal
 

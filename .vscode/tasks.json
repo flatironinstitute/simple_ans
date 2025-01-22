@@ -4,16 +4,35 @@
         {
             "label": "Format Code",
             "type": "shell",
-            "command": "devel/format.sh",
+            "command": "bash",
+            "args": [
+                "devel/format.sh"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run Python Tests",
+            "type": "shell",
+            "command": "pytest",
+            "args": [
+                "tests/",
+                "-v"
+            ],
             "group": {
-                "kind": "build",
+                "kind": "test",
                 "isDefault": true
             },
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "new"
             },
-            "problemMatcher": []
+            "problemMatcher": [
+                "$pytest"
+            ]
         }
     ]
 }
