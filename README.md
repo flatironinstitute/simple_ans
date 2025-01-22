@@ -1,6 +1,6 @@
 # simple_ans
 
-A Python package that provides lossless compression of integer datasets through [Asymmetric Numeral Systems (ANS)](https://ieeexplore.ieee.org/document/7170048), implemented in C++ with pybind11 bindings.
+A Python package that provides **lossless** compression of integer datasets through [Asymmetric Numeral Systems (ANS)](https://ieeexplore.ieee.org/document/7170048), implemented in C++ with pybind11 bindings.
 
 I used the following to guide the implementation:
 * [https://graphallthethings.com/posts/streaming-ans-explained/](https://graphallthethings.com/posts/streaming-ans-explained/).
@@ -8,6 +8,8 @@ I used the following to guide the implementation:
 * [https://kedartatwawadi.github.io/post--ANS/](https://kedartatwawadi.github.io/post--ANS/)
 
 While there are certainly many ANS implementations that are parts of other packages, this one strives to be as simple as possible, with the [C++ implementation](./simple_ans/cpp) being just a small amount of code in a single file. The Python interface is also simple and easy to use. At the same time it attempts to be as efficient as possible both in terms of compression ratio and encoding/decoding speed.
+
+[Technical overview of ANS and Streaming ANS](./doc/technical_overview.md)
 
 ## Installation
 
@@ -59,8 +61,6 @@ compressed_size = encoded.size()  # in bits
 compression_ratio = original_size / compressed_size
 print(f"Compression ratio: {compression_ratio:.2f}x")
 ```
-
-The package supports four integer types: `int16`, `uint16`, `int32`, and `uint32`.
 
 ## Simple benchmark
 

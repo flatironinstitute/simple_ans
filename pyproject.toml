@@ -32,8 +32,10 @@ cmake.args = []
 cmake.verbose = true
 sdist.include = ["simple_ans/cpp/*"]
 wheel.packages = ["simple_ans"]
-wheel.exclude = ["devel/*"]
 build-dir = "simple_ans"
+
+[tool.setuptools]
+packages = ["simple_ans"]
 
 [tool.scikit-build.cmake.define]
 SKBUILD = "ON"
