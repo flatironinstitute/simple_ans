@@ -3,7 +3,7 @@ import os
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from simple_ans import ans_encode, ans_decode, determine_symbol_counts_and_values
+from simple_ans import ans_encode, ans_decode
 
 # Generate random test data from normal distribution
 n = 5_000_000
@@ -20,18 +20,26 @@ results = []
 
 # Test simple_ans
 timer = time.time()
-auto_counts, auto_values = determine_symbol_counts_and_values(
-    signal, index_length=2**16
-)
-encoded = ans_encode(
-    signal=signal, symbol_counts=auto_counts, symbol_values=auto_values
-)  # Using auto-determined symbol counts
-elapsed_encode = time.time() - timer
+# auto_counts, auto_values = determine_symbol_counts_and_values(
+#     signal, index_length=2**16
+# )
+num_runs = 0
+while time.time() - timer < 4:
+    encoded = ans_encode(
+        signal=signal
+    )  # Using auto-determined symbol counts
+    num_runs += 1
+elapsed_encode = (time.time() - timer) / num_runs
+encoded = ans_encode(signal=signal)
 
 timer = time.time()
-signal_decoded = ans_decode(encoded)
-elapsed_decode = time.time() - timer
+num_runs = 0
+while time.time() - timer < 4:
+    signal_decoded = ans_decode(encoded)
+    num_runs += 1
+elapsed_decode = (time.time() - timer) / num_runs
 
+signal_decoded = ans_decode(encoded)
 assert len(signal_decoded) == len(signal)
 assert np.all(signal_decoded == signal)
 print("Decoded signal matches original signal")

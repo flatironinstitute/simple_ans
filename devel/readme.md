@@ -15,7 +15,7 @@ This package uses GitHub Actions for automated publishing to PyPI. To publish a 
    - Go to the Actions tab in GitHub
    - Select the "Publish to PyPI" workflow
    - Click "Run workflow"
-   - Enter the new version number (e.g. "0.2.3")
+   - Enter the new version number
    - Click "Run workflow"
 
 The workflow will:

@@ -21,7 +21,7 @@ decode_times = []
 for _ in range(num_trials):
     # Test simple_ans
     timer = time.time()
-    encoded = ans_encode(signal=signal)  # Using auto-determined symbol counts
+    encoded = ans_encode(signal=signal)
     elapsed_encode = time.time() - timer
     encode_times.append(elapsed_encode)
 
