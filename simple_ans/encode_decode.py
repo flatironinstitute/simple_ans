@@ -1,3 +1,4 @@
+from typing import Union
 import numpy as np
 from .EncodedSignal import EncodedSignal
 from .choose_symbol_counts import choose_symbol_counts
@@ -13,14 +14,17 @@ from ._simple_ans import (
 )
 
 
-def ans_encode(signal: np.ndarray, *, index_size: int = 2**16) -> EncodedSignal:
+def ans_encode(signal: np.ndarray, *, index_size: Union[int, None] = None, verbose=False) -> EncodedSignal:
     """Encode a signal using Asymmetric Numeral Systems (ANS).
 
     Args:
         signal: Input signal to encode as a 1D numpy array. Must be int32, int16, uint32, or uint16.
-        index_size: Size of the index table. (default: 2**16).
-        Must be a power of 2.
-        Must be at least as large as the number of unique symbols in the input signal.
+        index_size: Size of the index table or None. (default: None).
+            If provided, must be a power of 2 and at least as large as the number of unique symbols in the input signal.
+            If None, the index size is chosen smartly to be the smallest value that is expected to preserve
+            98% of the compressibility, but not more than 2^20.
+        verbose: If True, print additional information such as the chosen index size.
+
 
     Returns:
         An EncodedSignal object containing the encoded data.
@@ -29,14 +33,32 @@ def ans_encode(signal: np.ndarray, *, index_size: int = 2**16) -> EncodedSignal:
         raise TypeError("Input signal must be int32, int16, uint32, or uint16")
     assert signal.ndim == 1, "Input signal must be a 1D array"
 
-    # index_size must be a power of 2
-    if index_size & (index_size - 1) != 0:
-        raise ValueError("index_size must be a power of 2")
-
     signal_length = len(signal)
     vals, counts = np.unique(signal, return_counts=True)
     vals = np.array(vals, dtype=signal.dtype)
     probs = counts / np.sum(counts)
+
+    if index_size is None:
+        entropy_target = -np.sum(probs * np.log2(probs))
+        L = 2
+        while True:
+            if L >= len(vals):
+                symbol_counts_0 = choose_symbol_counts(probs, L)
+                probs_0 = symbol_counts_0 / L
+                entropy_target = -np.sum(probs * np.log2(probs))
+                entropy_0 = -np.sum(probs * np.log2(probs_0))
+                if entropy_0 <= entropy_target / 0.98 or L >= 2**20:
+                    if verbose:
+                        print(f'Using index size L = {L}')
+                    index_size = L
+                    break
+            L = L * 2
+    assert index_size is not None
+
+    # index_size must be a power of 2
+    if index_size & (index_size - 1) != 0:
+        raise ValueError("index_size must be a power of 2")
+
     S = len(vals)
     if S > index_size:
         raise ValueError(f"Number of unique symbols cannot be greater than L, got {S} unique symbols and L = {index_size}")

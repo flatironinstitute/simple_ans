@@ -8,7 +8,7 @@ Suppose that $\{0, 1, ..., S-1\}$ are the symbols we want to encode, and assume 
 
 We make the following assumptions
 * The symbols are sampled randomly and independently of one another
-* For convenience, the sum of the frequencies is a power of two:
+* For efficiency in the calculations, the sum of the frequencies is a power of two:
 $$L = 2^l = \sum_{i=0}^{S-1} f_i$$
 
 ## Basic ANS Encoding/Decoding

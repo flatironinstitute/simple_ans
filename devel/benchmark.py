@@ -7,7 +7,7 @@ from simple_ans import ans_encode, ans_decode
 
 # Generate random test data from normal distribution
 n = 5_000_000
-signal = np.round(np.random.normal(0, 1, n) * 4).astype(np.int32)
+signal = np.round(np.random.normal(0, 1, n) * 5).astype(np.int32)
 
 # Calculate ideal compression ratio
 vals, counts = np.unique(signal, return_counts=True)
@@ -26,7 +26,7 @@ timer = time.time()
 num_runs = 0
 while time.time() - timer < 4:
     encoded = ans_encode(
-        signal=signal
+        signal=signal,
     )  # Using auto-determined symbol counts
     num_runs += 1
 elapsed_encode = (time.time() - timer) / num_runs
