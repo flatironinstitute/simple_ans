@@ -64,9 +64,10 @@ jobs:
 
       - name: Build sdist
         run: |
+          pip install setuptools
           python setup.py sdist --formats=gztar
         env:
-          CIBW_BEFORE_BUILD: pip install pybind11 cmake setuptools
+          CIBW_BEFORE_BUILD: pip install pybind11 cmake
 
       - name: Upload wheels as artifacts
         uses: actions/upload-artifact@v3
