@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -32,6 +33,14 @@ EncodedData encode_t(const T* signal,
                      size_t num_symbols);
 
 template <typename T>
+EncodedData ans_encode_t(
+    const T* signal,
+    size_t signal_size,
+    const uint32_t* symbol_counts,
+    const T* symbol_values,
+    size_t num_symbols);
+
+template <typename T>
 void decode_t(T* output,
               size_t n,
               uint32_t state,
@@ -40,6 +49,16 @@ void decode_t(T* output,
               const uint32_t* symbol_counts,
               const T* symbol_values,
               size_t num_symbols);
+
+template <typename T>
+void ans_decode_t(T* output,
+                  size_t n,
+                  uint32_t state,
+                  const uint64_t* bitstream,
+                  size_t num_bits,
+                  const uint32_t* symbol_counts,
+                  const T* symbol_values,
+                  size_t num_symbols);
 
 // Legacy int32_t versions for backward compatibility
 inline EncodedData encode(const int32_t* signal,
@@ -160,6 +179,98 @@ EncodedData encode_t(const T* signal,
 }
 
 template <typename T>
+EncodedData ans_encode_t(const T* signal,
+                     size_t signal_size,
+                     const uint32_t* symbol_counts,
+                     const T* symbol_values,
+                     size_t num_symbols)
+{
+    // Calculate L and verify it's a power of 2
+    uint32_t L = 0;
+    for (size_t i = 0; i < num_symbols; ++i) {
+        L += symbol_counts[i];
+    }
+    if (!is_power_of_2(L)) {
+        throw std::invalid_argument("L must be a power of 2");
+    }
+
+    // Pre-compute cumulative sums
+    std::vector<uint32_t> C(num_symbols);
+    C[0] = 0;
+    for (size_t i = 1; i < num_symbols; ++i) {
+        C[i] = C[i-1] + symbol_counts[i-1];
+    }
+
+    // Create bit shift table
+    std::vector<std::vector<uint32_t>> bit_shift_table(L, std::vector<uint32_t>(num_symbols));
+    for (uint32_t i = 0; i < L; ++i) {
+        for (size_t s = 0; s < num_symbols; ++s) {
+            uint32_t f_s = symbol_counts[s];
+            uint32_t d = 0;
+            while ((L + i) / (1u << d) >= 2 * f_s) {
+                d++;
+            }
+            bit_shift_table[i][s] = d;
+        }
+    }
+
+    // Create state transition table
+    std::vector<std::vector<uint32_t>> state_transition_table(L, std::vector<uint32_t>(num_symbols));
+    for (uint32_t i = 0; i < L; ++i) {
+        for (size_t s = 0; s < num_symbols; ++s) {
+            uint32_t f_s = symbol_counts[s];
+            uint32_t d = bit_shift_table[i][s];
+            state_transition_table[i][s] = L + C[s] + ((L + i) / (1u << d) - f_s);
+        }
+    }
+
+    // Create symbol index lookup
+    std::unordered_map<T, size_t> symbol_index_lookup;
+    for (size_t i = 0; i < num_symbols; ++i) {
+        symbol_index_lookup[symbol_values[i]] = i;
+    }
+
+    // Initialize state and packed bitstream
+    uint32_t state = L;
+    std::vector<uint64_t> bitstream((signal_size * 32 + 63) / 64, 0); // Preallocate worst case
+    size_t num_bits = 0;
+
+    // Encode each symbol
+    for (size_t i = 0; i < signal_size; ++i) {
+        auto it = symbol_index_lookup.find(signal[i]);
+        if (it == symbol_index_lookup.end()) {
+            throw std::invalid_argument("Signal value not found in symbol_values");
+        }
+        size_t s_ind = it->second;
+
+        // Get number of bits to shift
+        uint32_t d = bit_shift_table[state - L][s_ind];
+
+        // Add bits to bitstream
+        // if ((num_bits & 63) >= (d - 1)) {
+        if (false) {
+            // can't figure this out!
+        } else {
+            // this is possibly the slower case, but should be less common
+            for (uint32_t j = 0; j < d; ++j) {
+                size_t word_idx = (num_bits + j) >> 6;  // Divide by 64
+                size_t bit_idx = (num_bits + j) & 63;   // Modulo 64
+                bitstream[word_idx] |= static_cast<uint64_t>((state >> (j)) & 1) << bit_idx;
+            }
+        }
+        num_bits += d;
+
+        // Update state
+        state = state_transition_table[state - L][s_ind];
+    }
+
+    // Truncate bitstream to actual size used
+    size_t final_words = (num_bits + 63) / 64;
+    bitstream.resize(final_words);
+    return {state, std::move(bitstream), num_bits};
+}
+
+template <typename T>
 void decode_t(T* output,
               size_t n,
               uint32_t state,
@@ -257,6 +368,127 @@ void decode_t(T* output,
 
         output[n - 1 - i] = symbol_values[s];
     }
+}
+
+template <typename T>
+void ans_decode_t(T* output,
+                  size_t n,
+                  uint32_t state,
+                  const uint64_t* bitstream,
+                  size_t num_bits,
+                  const uint32_t* symbol_counts,
+                  const T* symbol_values,
+                  size_t num_symbols)
+{
+    auto start_total = std::chrono::high_resolution_clock::now();
+    auto start_setup = start_total;
+    // Calculate L and verify it's a power of 2
+    uint32_t L = 0;
+    for (size_t i = 0; i < num_symbols; ++i) {
+        L += symbol_counts[i];
+    }
+    if (!is_power_of_2(L)) {
+        throw std::invalid_argument("L must be a power of 2");
+    }
+
+    // Pre-compute cumulative sums
+    std::vector<uint32_t> C(num_symbols);
+    C[0] = 0;
+    for (size_t i = 1; i < num_symbols; ++i) {
+        C[i] = C[i-1] + symbol_counts[i-1];
+    }
+
+    auto end_setup = std::chrono::high_resolution_clock::now();
+    auto start_tables = end_setup;
+
+    // Create symbol lookup table
+    std::vector<uint32_t> symbol_lookup(L);
+    for (size_t s = 0; s < num_symbols; ++s) {
+        for (uint32_t j = 0; j < symbol_counts[s]; ++j) {
+            symbol_lookup[C[s] + j] = s;
+        }
+    }
+
+    // Create state update table
+    std::vector<uint32_t> state_update(L);
+    for (uint32_t i = 0; i < L; ++i) {
+        uint32_t s = symbol_lookup[i];
+        uint32_t f_s = symbol_counts[s];
+        state_update[i] = f_s + i - C[s];
+    }
+
+    // Create bit count table
+    uint32_t max_f_s = 0;
+    for (size_t s = 0; s < num_symbols; ++s) {
+        max_f_s = std::max(max_f_s, symbol_counts[s]);
+    }
+    std::vector<uint32_t> bit_count_table(2 * max_f_s);
+    for (uint32_t i = 1; i < 2 * max_f_s; ++i) {
+        uint32_t d = 0;
+        while (i * (1u << d) < L) {
+            d++;
+        }
+        bit_count_table[i] = d;
+    }
+
+    // Prepare bit reading
+    int64_t bit_pos = num_bits - 1;
+
+    auto end_tables = std::chrono::high_resolution_clock::now();
+    auto start_decode = end_tables;
+
+    // Decode symbols in reverse order
+    size_t fast_path = 0;
+    size_t slow_path = 0;
+    for (size_t i = 0; i < n; ++i) {
+        uint32_t s_ind = symbol_lookup[state - L];
+        output[n - 1 - i] = symbol_values[s_ind];
+
+        uint32_t state_2 = state_update[state - L];
+        uint32_t d = bit_count_table[state_2];
+        uint32_t new_state = state_2 << d;
+
+        // Read d bits from bitstream
+        if ((bit_pos & 63) >= (d - 1)) {
+            // in this case we can grab all the bits we need at once from the current word
+            uint32_t word_idx = bit_pos >> 6;  // Divide by 64
+            uint32_t bit_idx = bit_pos & 63;   // Modulo 64
+            // get bits from bit_idx - d + 1 to bit_idx
+            uint32_t bits = static_cast<uint32_t>((bitstream[word_idx] >> (bit_idx - d + 1)) & ((1 << d) - 1));
+            new_state |= bits;
+            bit_pos -= d;
+            fast_path++;
+        } else {
+            // this is possibly the slower case, but should be less common
+            for (uint32_t j = 0; j < d; ++j)
+            {
+                uint32_t word_idx = (bit_pos - j) >> 6;  // Divide by 64
+                uint32_t bit_idx = (bit_pos - j) & 63;   // Modulo 64
+                new_state |= (static_cast<uint32_t>((bitstream[word_idx] >> bit_idx) & 1) << (d - 1 - j));
+            }
+            bit_pos -= d;
+            slow_path++;
+        }
+        state = new_state;
+    }
+
+    auto end_decode = std::chrono::high_resolution_clock::now();
+    auto end_total = end_decode;
+
+    // Calculate durations in microseconds
+    auto setup_time = std::chrono::duration_cast<std::chrono::microseconds>(end_setup - start_setup).count();
+    auto tables_time = std::chrono::duration_cast<std::chrono::microseconds>(end_tables - start_tables).count();
+    auto decode_time = std::chrono::duration_cast<std::chrono::microseconds>(end_decode - start_decode).count();
+    auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
+
+    std::cout << "\nANS Decode Profiling:\n"
+              << "Setup time: " << setup_time << " µs\n"
+              << "Tables creation time: " << tables_time << " µs\n"
+              << "Main decode loop time: " << decode_time << " µs\n"
+              << "Total time: " << total_time << " µs\n"
+              << "Fast path hits: " << fast_path << "\n"
+              << "Slow path hits: " << slow_path << "\n"
+              << std::endl;
 }
 
 }  // namespace simple_ans

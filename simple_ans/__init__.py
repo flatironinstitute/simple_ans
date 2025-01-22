@@ -7,11 +7,14 @@ from ._simple_ans import (
     decode_uint16 as _decode_uint16,
     encode_uint32 as _encode_uint32,
     decode_uint32 as _decode_uint32,
-    choose_symbol_counts,
 )
 from dataclasses import dataclass
 from typing import Union
 import numpy as np
+
+from .encode_decode import ans_encode as ans_encode_new
+from .encode_decode import ans_decode as ans_decode_new
+from .choose_symbol_counts import choose_symbol_counts
 
 __version__ = "0.2.3"
 
@@ -272,6 +275,8 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
 __all__ = [
     "ans_encode",
     "ans_decode",
+    "ans_encode_new",
+    "ans_decode_new",
     "choose_symbol_counts",
     "determine_symbol_counts_and_values",
     "EncodedSignal",

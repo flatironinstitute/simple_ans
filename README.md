@@ -2,9 +2,12 @@
 
 A Python package that provides lossless compression of integer datasets through [Asymmetric Numeral Systems (ANS)](https://ieeexplore.ieee.org/document/7170048), implemented in C++ with pybind11 bindings.
 
-The implementation is based on [this guide](https://graphallthethings.com/posts/streaming-ans-explained/).
+I used the following to guide the implementation:
+* [https://graphallthethings.com/posts/streaming-ans-explained/](https://graphallthethings.com/posts/streaming-ans-explained/).
+* [https://bjlkeng.io/posts/lossless-compression-with-asymmetric-numeral-systems/](https://bjlkeng.io/posts/lossless-compression-with-asymmetric-numeral-systems/)
+* [https://kedartatwawadi.github.io/post--ANS/](https://kedartatwawadi.github.io/post--ANS/)
 
-While there are certainly many ANS implementations that are parts of other packages, this one strives to be as simple as possible, with the [C++ implementation](./simple_ans/cpp) being just a small amount of code in a single file. The Python interface is also simple and easy to use.
+While there are certainly many ANS implementations that are parts of other packages, this one strives to be as simple as possible, with the [C++ implementation](./simple_ans/cpp) being just a small amount of code in a single file. The Python interface is also simple and easy to use. At the same time it attempts to be as efficient as possible both in terms of compression ratio and encoding/decoding speed.
 
 ## Installation
 
