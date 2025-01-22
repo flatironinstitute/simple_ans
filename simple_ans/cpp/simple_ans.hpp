@@ -214,7 +214,7 @@ void ans_decode_t(T* output,
     for (uint32_t i = 1; i < 2 * max_f_s; ++i)
     {
         uint32_t d = 0;
-        while (i * (1u << d) < L)
+        while ((i << d) < L)
         {
             d++;
         }
@@ -235,7 +235,10 @@ void ans_decode_t(T* output,
         uint32_t new_state = state_2 << d;
 
         // Read d bits from bitstream
-        read_bits_from_end_of_bitstream(bitstream, bit_pos, new_state, 0, d);
+        if (d > 0)
+        {
+            read_bits_from_end_of_bitstream(bitstream, bit_pos, new_state, 0, d);
+        }
         bit_pos -= d;
         state = new_state;
     }
