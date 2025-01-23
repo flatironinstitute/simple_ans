@@ -4,6 +4,14 @@ project(simple_ans VERSION 0.1.0 LANGUAGES CXX)
 # Find pybind11
 find_package(pybind11 REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(
+  unordered_dense
+  GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
+  GIT_TAG v4.5.0
+  GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(unordered_dense)
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,6 +36,7 @@ target_include_directories(_simple_ans
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/simple_ans/cpp
 )
+target_link_libraries(_simple_ans PRIVATE unordered_dense)
 
 # Set compiler flags
 if(MSVC)

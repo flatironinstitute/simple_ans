@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
-#include <iostream>
+#include <limits>
 #include <stdexcept>
-#include <unordered_map>
 #include <vector>
+
+#include <ankerl/unordered_dense.h>
 
 namespace simple_ans
 {
@@ -87,6 +89,9 @@ EncodedData ans_encode_t(const T* signal,
                          const T* symbol_values,
                          size_t num_symbols)
 {
+    static_assert(sizeof(T) < sizeof(int64_t),
+                  "Value range of T must fit in int64_t for table lookup");
+
     // Calculate L and verify it's a power of 2
     uint32_t L = 0;
     for (size_t i = 0; i < num_symbols; ++i)
@@ -107,10 +112,32 @@ EncodedData ans_encode_t(const T* signal,
     }
 
     // Create symbol index lookup
-    std::unordered_map<T, size_t> symbol_index_lookup;
+    ankerl::unordered_dense::map<T, size_t> symbol_index_lookup;
+    int64_t min_symbol = symbol_values[0];
+    int64_t max_symbol = symbol_values[0];
     for (size_t i = 0; i < num_symbols; ++i)
     {
         symbol_index_lookup[symbol_values[i]] = i;
+        min_symbol = std::min(min_symbol, static_cast<int64_t>(symbol_values[i]));
+        max_symbol = std::max(max_symbol, static_cast<int64_t>(symbol_values[i]));
+    }
+
+    // Map lookups can be a bottleneck, so we use a lookup array if the number of symbols is "small"
+    constexpr int lookup_array_threshold = 4096;
+    const bool use_lookup_array = (max_symbol - min_symbol + 1) <= lookup_array_threshold;
+    std::vector<size_t> symbol_index_lookup_array;
+    if (use_lookup_array)
+    {
+        symbol_index_lookup_array.resize(max_symbol - min_symbol + 1);
+
+        std::fill(symbol_index_lookup_array.begin(),
+                  symbol_index_lookup_array.end(),
+                  std::numeric_limits<size_t>::max());
+
+        for (size_t i = 0; i < num_symbols; ++i)
+        {
+            symbol_index_lookup_array[symbol_values[i] - min_symbol] = i;
+        }
     }
 
     // Initialize state and packed bitstream
@@ -123,12 +150,31 @@ EncodedData ans_encode_t(const T* signal,
     // Encode each symbol
     for (size_t i = 0; i < signal_size; ++i)
     {
-        auto it = symbol_index_lookup.find(signal[i]);
-        if (it == symbol_index_lookup.end())
+        // Symbol index
+        size_t s_ind;
+        if (use_lookup_array)
         {
-            throw std::invalid_argument("Signal value not found in symbol_values");
+            const int64_t lookup_ind = signal[i] - min_symbol;
+            if (lookup_ind < 0 || lookup_ind >= lookup_array_threshold)
+            {
+                throw std::invalid_argument("Signal value not found in symbol_values");
+            }
+            s_ind = symbol_index_lookup_array[lookup_ind];
+            if (s_ind == std::numeric_limits<size_t>::max())
+            {
+                throw std::invalid_argument("Signal value not found in symbol_values");
+            }
+            assert(s_ind == symbol_index_lookup[signal[i]]);
         }
-        size_t s_ind = it->second;
+        else
+        {
+            auto it = symbol_index_lookup.find(signal[i]);
+            if (it == symbol_index_lookup.end())
+            {
+                throw std::invalid_argument("Signal value not found in symbol_values");
+            }
+            s_ind = it->second;
+        }
 
         uint32_t state_normalized = state;
         const uint32_t L_s = symbol_counts[s_ind];
