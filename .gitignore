@@ -1,4 +1,5 @@
 benchmark_output
+_deps
 
 # Python specific ignores
 __pycache__/

@@ -10,7 +10,9 @@ from ._simple_ans import (
     ans_encode_uint16 as _ans_encode_uint16,
     ans_decode_uint16 as _ans_decode_uint16,
     ans_encode_uint32 as _ans_encode_uint32,
-    ans_decode_uint32 as _ans_decode_uint32
+    ans_decode_uint32 as _ans_decode_uint32,
+    ans_encode_uint8 as _ans_encode_uint8,
+    ans_decode_uint8 as _ans_decode_uint8,
 )
 
 
@@ -18,7 +20,7 @@ def ans_encode(signal: np.ndarray, *, index_size: Union[int, None] = None, verbo
     """Encode a signal using Asymmetric Numeral Systems (ANS).
 
     Args:
-        signal: Input signal to encode as a 1D numpy array. Must be int32, int16, uint32, or uint16.
+        signal: Input signal to encode as a 1D numpy array. Must be int32, int16, uint32, uint16, or uint8.
         index_size: Size of the index table or None. (default: None).
             If provided, must be a power of 2 and at least as large as the number of unique symbols in the input signal.
             If None, the index size is chosen smartly to be the smallest value that is expected to preserve
@@ -29,8 +31,8 @@ def ans_encode(signal: np.ndarray, *, index_size: Union[int, None] = None, verbo
     Returns:
         An EncodedSignal object containing the encoded data.
     """
-    if signal.dtype not in [np.int32, np.int16, np.uint32, np.uint16]:
-        raise TypeError("Input signal must be int32, int16, uint32, or uint16")
+    if signal.dtype not in [np.int32, np.int16, np.uint32, np.uint16, np.uint8]:
+        raise TypeError("Input signal must be int32, int16, uint32, uint16, or uint8")
     assert signal.ndim == 1, "Input signal must be a 1D array"
 
     signal_length = len(signal)
@@ -75,8 +77,10 @@ def ans_encode(signal: np.ndarray, *, index_size: Union[int, None] = None, verbo
         encoded = _ans_encode_int16(signal, symbol_counts, symbol_values)
     elif dtype == np.uint32:
         encoded = _ans_encode_uint32(signal, symbol_counts, symbol_values)
-    else:  # dtype == np.uint16
+    elif dtype == np.uint16:
         encoded = _ans_encode_uint16(signal, symbol_counts, symbol_values)
+    else:  # dtype == np.uint8
+        encoded = _ans_encode_uint8(signal, symbol_counts, symbol_values)
 
     return EncodedSignal(
         state=encoded.state,
@@ -124,8 +128,17 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
             encoded.symbol_values,
             encoded.signal_length,
         )
-    else:  # dtype == np.uint16
+    elif encoded.symbol_values.dtype == np.uint16:
         return _ans_decode_uint16(
+            encoded.state,
+            encoded.bitstream,
+            encoded.num_bits,
+            encoded.symbol_counts,
+            encoded.symbol_values,
+            encoded.signal_length,
+        )
+    else:  # dtype == np.uint8
+        return _ans_decode_uint8(
             encoded.state,
             encoded.bitstream,
             encoded.num_bits,

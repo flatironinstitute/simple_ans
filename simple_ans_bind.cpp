@@ -120,4 +120,5 @@ PYBIND11_MODULE(_simple_ans, m)
     bind_ans_functions<int16_t>(m, "int16");
     bind_ans_functions<uint32_t>(m, "uint32");
     bind_ans_functions<uint16_t>(m, "uint16");
+    bind_ans_functions<uint8_t>(m, "uint8");
 }

@@ -19,7 +19,7 @@ class EncodedSignal:
     bitstream: bytes
     num_bits: int
     symbol_counts: np.ndarray  # uint32 array
-    symbol_values: np.ndarray  # int32 or int16 array
+    symbol_values: np.ndarray  # int32, uint32, int16, uint16, or uint8 array
     signal_length: int
 
     def size(self) -> int:
@@ -60,4 +60,5 @@ class EncodedSignal:
             np.int16,
             np.uint32,
             np.uint16,
-        ], "symbol_values must be int32, int16, uint32, or uint16"
+            np.uint8,
+        ], "symbol_values must be int32, int16, uint32, uint16, or uint8"

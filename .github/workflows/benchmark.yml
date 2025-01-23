@@ -33,9 +33,10 @@ jobs:
         run: |
           python -m pip install matplotlib zstandard
 
-      - name: Run benchmark
+      - name: Run benchmarks
         run: |
           python devel/benchmark.py
+          python devel/benchmark2.py
 
       - name: Configure Git
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -55,6 +56,10 @@ jobs:
         run: |
           mv benchmark_output/benchmark.json benchmark-results/
           mv benchmark_output/benchmark.png benchmark-results/
+          mv benchmark_output/benchmark2.json benchmark-results/
+          mv benchmark_output/benchmark2_compression_ratio.png benchmark-results/
+          mv benchmark_output/benchmark2_encode_rate.png benchmark-results/
+          mv benchmark_output/benchmark2_decode_rate.png benchmark-results/
 
       - name: Commit benchmark results
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

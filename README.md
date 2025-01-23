@@ -72,6 +72,24 @@ The benchmark.py also runs in a CI environment and produces the following graph:
 
 We see that for this example, the ANS-based compression ratio is higher than the other methods, almost reaching the theoretical ideal. The encode rate in MB/s is also fastest for simple_ans. The decode rate is faster than Zlib but slower than Zstandard. I think in principle, we should be able to speed up the decoding. Let me know if you have ideas for this.
 
+## Extended benchmarks
+
+A more comprehensive benchmark ([devel/benchmark2.py](./devel/benchmark2.py)) tests the compression performance across different types of distributions:
+
+* Bernoulli distributions with varying probabilities (p = 0.1 to 0.5)
+* Quantized Gaussian distributions with different quantization steps
+* Poisson distributions with various lambda parameters
+
+The benchmark compares simple_ans against zstd-22 and zlib-9, measuring compression ratios and processing speeds:
+
+![Compression Ratios](https://github.com/magland/simple_ans/blob/benchmark-results/benchmark-results/benchmark2_compression_ratio.png?raw=true)
+
+![Encode Speeds](https://github.com/magland/simple_ans/blob/benchmark-results/benchmark-results/benchmark2_encode_rate.png?raw=true)
+
+![Decode Speeds](https://github.com/magland/simple_ans/blob/benchmark-results/benchmark-results/benchmark2_decode_rate.png?raw=true)
+
+The results show that simple_ans consistently achieves compression ratios close to the theoretical ideal across all distributions, while maintaining competitive processing speeds.
+
 ## Authors
 
 Jeremy Magland, Center for Computational Mathematics, Flatiron Institute
