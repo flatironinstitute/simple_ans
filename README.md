@@ -70,7 +70,7 @@ The benchmark.py also runs in a CI environment and produces the following graph:
 
 ![Benchmark](https://github.com/magland/simple_ans/blob/benchmark-results/benchmark-results/benchmark.png?raw=true)
 
-We see that for this example, the ANS-based compression ratio is higher than the other methods, almost reaching the theoretical ideal. The encode rate in MB/s is better than most other methods. The decode rate is faster than Zlib but slower than Zstandard. I think in principle, we should be able to speed up the decoding. Let me know if you have ideas for this.
+We see that for this example, the ANS-based compression ratio is higher than the other methods, almost reaching the theoretical ideal. The encode rate in MB/s is also fastest for simple_ans. The decode rate is faster than Zlib but slower than Zstandard. I think in principle, we should be able to speed up the decoding. Let me know if you have ideas for this.
 
 ## Authors
 
