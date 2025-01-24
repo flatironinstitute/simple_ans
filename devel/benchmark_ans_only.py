@@ -18,6 +18,15 @@ num_trials = 10
 encode_times = []
 decode_times = []
 
+
+def warmup(elapsed=3):
+    timer = time.time()
+    while (time.time() - timer) < elapsed:
+        ans_encode(signal=signal)
+
+warmup()
+
+
 for _ in range(num_trials):
     # Test simple_ans
     timer = time.time()

@@ -1,7 +1,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <cstdint>
 #include <cstring>  // for memcpy
+
 #include "simple_ans/cpp/simple_ans.hpp"
 
 namespace py = pybind11;
@@ -12,6 +14,17 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
 {
     std::string ans_encode_name = std::string("ans_encode_") + type_suffix;
     std::string ans_decode_name = std::string("ans_decode_") + type_suffix;
+    std::string ans_unique_name = std::string("ans_unique_") + type_suffix;
+
+    m.def(
+        ans_unique_name.c_str(),
+        [](py::array_t<T> signal)
+        {
+            py::buffer_info buf = signal.request();
+            return simple_ans::unique_with_counts(static_cast<const T*>(buf.ptr), buf.size);
+        },
+        "Get unique values and their counts",
+        py::arg("signal").noconvert());
 
     m.def(
         ans_encode_name.c_str(),

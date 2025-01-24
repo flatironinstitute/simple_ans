@@ -32,7 +32,7 @@ cmake.args = []
 cmake.verbose = true
 sdist.include = ["simple_ans/cpp/*"]
 wheel.packages = ["simple_ans"]
-build-dir = "simple_ans"
+build-dir = "build"
 
 [tool.setuptools]
 packages = ["simple_ans"]

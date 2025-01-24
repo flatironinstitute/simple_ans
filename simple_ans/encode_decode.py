@@ -5,15 +5,52 @@ from .choose_symbol_counts import choose_symbol_counts
 from ._simple_ans import (
     ans_encode_int16 as _ans_encode_int16,
     ans_decode_int16 as _ans_decode_int16,
+    ans_unique_int16 as _ans_unique_int16,
     ans_encode_int32 as _ans_encode_int32,
     ans_decode_int32 as _ans_decode_int32,
+    ans_unique_int32 as _ans_unique_int32,
     ans_encode_uint16 as _ans_encode_uint16,
     ans_decode_uint16 as _ans_decode_uint16,
+    ans_unique_uint16 as _ans_unique_uint16,
     ans_encode_uint32 as _ans_encode_uint32,
     ans_decode_uint32 as _ans_decode_uint32,
+    ans_unique_uint32 as _ans_unique_uint32,
     ans_encode_uint8 as _ans_encode_uint8,
     ans_decode_uint8 as _ans_decode_uint8,
+    ans_unique_uint8 as _ans_unique_uint8,
 )
+
+
+def _ans_unique(arr: np.ndarray):
+    """Find unique elements and the number of times they appear.
+
+    Args:
+        arr: 1D numpy array. Must be int32, int16, uint32, uint16, or uint8.
+
+    Returns:
+        A tuple[ndarray, ndarray] where the first array contains the sorted unique elements,
+        and the second is the respective counts.
+    """
+    dtype = arr.dtype
+    if dtype == np.int32:
+        vals, counts = _ans_unique_int32(arr)
+    elif dtype == np.int16:
+        vals, counts = _ans_unique_int16(arr)
+    elif dtype == np.uint32:
+        vals, counts = _ans_unique_uint32(arr)
+    elif dtype == np.uint8:
+        vals, counts = _ans_unique_uint8(arr)
+    elif dtype == np.uint16:
+        vals, counts = _ans_unique_uint16(arr)
+    else:
+        raise TypeError("Invalid numpy type")
+
+    assert len(vals) == len(counts)
+
+    if not len(vals):
+        vals, counts = np.unique(arr, return_counts=True)
+
+    return vals, counts
 
 
 def ans_encode(signal: np.ndarray, *, index_size: Union[int, None] = None, verbose=False) -> EncodedSignal:
@@ -36,7 +73,7 @@ def ans_encode(signal: np.ndarray, *, index_size: Union[int, None] = None, verbo
     assert signal.ndim == 1, "Input signal must be a 1D array"
 
     signal_length = len(signal)
-    vals, counts = np.unique(signal, return_counts=True)
+    vals, counts = _ans_unique(signal)
     vals = np.array(vals, dtype=signal.dtype)
     probs = counts / np.sum(counts)
 
