@@ -45,13 +45,6 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-      - name: Create fresh results branch
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-        run: |
-          git checkout --orphan benchmark-results
-          git rm -rf .
-          mkdir -p benchmark-results
-
       - name: Upload benchmark results as artifacts
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
@@ -69,12 +62,17 @@ jobs:
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         run: |
           mkdir -p benchmark-results
-          mv benchmark_output/benchmark.json benchmark-results/
-          mv benchmark_output/benchmark.png benchmark-results/
-          mv benchmark_output/benchmark2.json benchmark-results/
-          mv benchmark_output/benchmark2_compression_ratio.png benchmark-results/
-          mv benchmark_output/benchmark2_encode_rate.png benchmark-results/
-          mv benchmark_output/benchmark2_decode_rate.png benchmark-results/
+          cp benchmark_output/benchmark.json benchmark-results/
+          cp benchmark_output/benchmark.png benchmark-results/
+          cp benchmark_output/benchmark2.json benchmark-results/
+          cp benchmark_output/benchmark2_compression_ratio.png benchmark-results/
+          cp benchmark_output/benchmark2_encode_rate.png benchmark-results/
+          cp benchmark_output/benchmark2_decode_rate.png benchmark-results/
+
+      - name: Create fresh results branch
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        run: |
+          git checkout --orphan benchmark-results
 
       - name: Commit benchmark results
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
