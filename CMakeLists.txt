@@ -3,6 +3,14 @@ project(simple_ans VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_RELEASE_FLAGS "-O3 -march=native")
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if (ipo_supported)
+  message(STATUS "IPO/LTO is supported")
+else()
+  message(WARNING "IPO/LTO is not supported: ${ipo_error}")
+endif()
+
 # Find pybind11
 find_package(pybind11 REQUIRED)
 
@@ -46,6 +54,11 @@ if(MSVC)
 else()
     target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+if(ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
+  set_target_properties(_simple_ans PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
 
 # Install rules
 include(GNUInstallDirs)
