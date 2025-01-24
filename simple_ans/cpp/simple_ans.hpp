@@ -77,19 +77,18 @@ std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* va
 
     if ((max_value - min_value + 1) <= lookup_array_threshold)
     {
-        counts.resize(max_value - min_value + 1);
+        std::vector<uint64_t> raw_counts(max_value - min_value + 1);
         for (size_t i = 0; i < n; ++i)
         {
-            counts[values[i] - min_value]++;
+            raw_counts[values[i] - min_value]++;
         }
 
-        std::vector<uint64_t> nonzero_counts;
         for (size_t i = 0; i < counts.size(); ++i)
         {
-            if (counts[i])
+            if (raw_counts[i])
             {
                 unique_values.push_back(static_cast<T>(i + min_value));
-                nonzero_counts.push_back(counts[i]);
+                counts.push_back(raw_counts[i]);
             }
         }
     }

@@ -36,7 +36,9 @@ def _ans_unique(arr: np.ndarray):
     else:
         raise TypeError("Invalid numpy type")
 
-    if not len(vals) or not len(counts):
+    assert len(vals) == len(counts)
+
+    if not len(vals):
         vals, counts = np.unique(arr, return_counts=True)
 
     return vals, counts
