@@ -68,6 +68,7 @@ jobs:
       - name: Move benchmark files
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         run: |
+          mkdir -p benchmark-results
           mv benchmark_output/benchmark.json benchmark-results/
           mv benchmark_output/benchmark.png benchmark-results/
           mv benchmark_output/benchmark2.json benchmark-results/
