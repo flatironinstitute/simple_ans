@@ -4,6 +4,7 @@ on:
   workflow_dispatch:  # Manual trigger
   push:
     branches: [ main ]  # Run on main branch pushes
+  pull_request:  # Run on all pull requests
 
 permissions:
   contents: write
@@ -39,20 +40,33 @@ jobs:
           python devel/benchmark2.py
 
       - name: Configure Git
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
       - name: Create fresh results branch
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         run: |
           git checkout --orphan benchmark-results
           git rm -rf .
           mkdir -p benchmark-results
 
+      - name: Upload benchmark results as artifacts
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark_output/benchmark.json
+            benchmark_output/benchmark.png
+            benchmark_output/benchmark2.json
+            benchmark_output/benchmark2_compression_ratio.png
+            benchmark_output/benchmark2_encode_rate.png
+            benchmark_output/benchmark2_decode_rate.png
+
       - name: Move benchmark files
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         run: |
           mv benchmark_output/benchmark.json benchmark-results/
           mv benchmark_output/benchmark.png benchmark-results/
@@ -62,7 +76,7 @@ jobs:
           mv benchmark_output/benchmark2_decode_rate.png benchmark-results/
 
       - name: Commit benchmark results
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
