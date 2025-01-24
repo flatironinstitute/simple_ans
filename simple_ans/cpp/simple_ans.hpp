@@ -51,7 +51,8 @@ void ans_decode_t(T* output,
 
 namespace simple_ans
 {
-constexpr int lookup_array_threshold = std::numeric_limits<uint16_t>::max() + 1;
+constexpr int unique_array_threshold = static_cast<int>(std::numeric_limits<uint16_t>::max()) + 1;
+constexpr int lookup_array_threshold = unique_array_threshold;
 
 template <typename T>
 std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* values, size_t n)
@@ -75,7 +76,7 @@ std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* va
         max_value = std::max(max_value, static_cast<int64_t>(values[i]));
     }
 
-    if ((max_value - min_value + 1) <= lookup_array_threshold)
+    if ((max_value - min_value + 1) <= unique_array_threshold)
     {
         std::vector<uint64_t> raw_counts(max_value - min_value + 1);
         for (size_t i = 0; i < n; ++i)
@@ -83,7 +84,7 @@ std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* va
             raw_counts[values[i] - min_value]++;
         }
 
-        for (size_t i = 0; i < counts.size(); ++i)
+        for (size_t i = 0; i < raw_counts.size(); ++i)
         {
             if (raw_counts[i])
             {
