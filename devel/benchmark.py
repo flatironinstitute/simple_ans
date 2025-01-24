@@ -82,7 +82,7 @@ print(
     f"simple_ans: Time to decode: {elapsed_decode:.2f} seconds ({signal_bytes/elapsed_decode/1e6:.2f} MB/s)"
 )
 print("")
-exit()
+
 # Test zlib at different levels
 import zlib
 
@@ -208,6 +208,7 @@ output = {
     "results": results,
 }
 
+print('Saving benchmark results')
 if not os.path.exists("benchmark_output"):
     os.makedirs("benchmark_output")
 
