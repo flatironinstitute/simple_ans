@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from simple_ans import ans_encode, ans_decode
 
 # Generate random test data from normal distribution
-n = 5_000_000
+n = 10_000_000
 signal = np.round(np.random.normal(0, 1, n) * 5).astype(np.int32)
 
 # Calculate ideal compression ratio
@@ -19,6 +19,15 @@ print(f"Ideal compression ratio: {ideal_compression_ratio}")
 results = []
 
 # Test simple_ans
+ans_encode(signal=signal)
+
+def warmup():
+    timer = time.time()
+    while (time.time() - timer) < 1:
+        ans_encode(signal=signal)
+
+warmup()
+
 timer = time.time()
 # auto_counts, auto_values = determine_symbol_counts_and_values(
 #     signal, index_length=2**16
@@ -45,9 +54,8 @@ assert np.all(signal_decoded == signal)
 print("Decoded signal matches original signal")
 
 # 64 bits per bitstream word, 32 bits for state, 32 bits per symbol count, 32 bits per symbol value, 32 bits for num_bits, 32 bits for signal_length
-compressed_size_bits = encoded.size() * 8
-signal_bytes = len(signal.tobytes())
-compression_ratio = signal_bytes * 8 / compressed_size_bits
+signal_bytes = signal.nbytes
+compression_ratio = signal_bytes / encoded.size()
 
 results.append(
     {
@@ -74,7 +82,7 @@ print(
     f"simple_ans: Time to decode: {elapsed_decode:.2f} seconds ({signal_bytes/elapsed_decode/1e6:.2f} MB/s)"
 )
 print("")
-
+exit()
 # Test zlib at different levels
 import zlib
 

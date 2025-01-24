@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 project(simple_ans VERSION 0.1.0 LANGUAGES CXX)
 
+set(CMAKE_CXX_RELEASE_FLAGS "-O3 -march=native")
+
 # Find pybind11
 find_package(pybind11 REQUIRED)
 

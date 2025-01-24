@@ -22,6 +22,15 @@ from ._simple_ans import (
 
 
 def _ans_unique(arr: np.ndarray):
+    """Find unique elements and the number of times they appear.
+
+    Args:
+        arr: 1D numpy array. Must be int32, int16, uint32, uint16, or uint8.
+
+    Returns:
+        A tuple[ndarray, ndarray] where the first array contains the sorted unique elements,
+        and the second is the respective counts.
+    """
     dtype = arr.dtype
     if dtype == np.int32:
         vals, counts = _ans_unique_int32(arr)
