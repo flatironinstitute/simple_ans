@@ -51,6 +51,51 @@ void ans_decode_t(T* output,
 
 namespace simple_ans
 {
+constexpr int lookup_array_threshold = std::numeric_limits<uint16_t>::max();
+
+template <typename T>
+std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* values, size_t n)
+{
+    // WARNING: This is ONLY a helper function. It doesn't support arrays with a large domain, and will instead fail
+    // return empty vectors. It is up to the caller to handle this case separately. numpy.unique() is quite fast, with
+    // improvements to use vectorized sorts (in 2.x, at least), so I didn't bother to implement a more efficient version here.
+    std::vector<T> unique_values;
+    std::vector<uint64_t> counts;
+    if (!n)
+    {
+        return {unique_values, counts};
+    }
+
+    int64_t min_value = values[0];
+    int64_t max_value = values[0];
+    // Check if the range of values is small enough to use a lookup array
+    for (size_t i = 1; i < n; ++i)
+    {
+        min_value = std::min(min_value, static_cast<int64_t>(values[i]));
+        max_value = std::max(max_value, static_cast<int64_t>(values[i]));
+    }
+
+    if ((max_value - min_value + 1) <= lookup_array_threshold)
+    {
+        counts.resize(max_value - min_value + 1);
+        for (size_t i = 0; i < n; ++i)
+        {
+            counts[values[i] - min_value]++;
+        }
+
+        std::vector<uint64_t> nonzero_counts;
+        for (size_t i = 0; i < counts.size(); ++i)
+        {
+            if (counts[i])
+            {
+                unique_values.push_back(static_cast<T>(i + min_value));
+                nonzero_counts.push_back(counts[i]);
+            }
+        }
+    }
+
+    return {std::move(unique_values), std::move(counts)};
+}
 
 inline void read_bits_from_end_of_bitstream(const uint64_t* bitstream,
                                             int64_t& source_bit_position,
@@ -123,7 +168,6 @@ EncodedData ans_encode_t(const T* signal,
     }
 
     // Map lookups can be a bottleneck, so we use a lookup array if the number of symbols is "small"
-    constexpr int lookup_array_threshold = 4096;
     const bool use_lookup_array = (max_symbol - min_symbol + 1) <= lookup_array_threshold;
     std::vector<size_t> symbol_index_lookup_array;
     if (use_lookup_array)
