@@ -61,7 +61,16 @@ def test_incorrect_data_types():
     print("Test passed: incorrect data types handled correctly")
 
 
+def test_empty_array():
+    # Test handling of empty arrays
+    empty_signal = np.array([], dtype=np.int32)
+    with pytest.raises(ValueError, match="Empty array"):
+        ans_encode(empty_signal)
+    print("Test passed: empty array handling")
+
+
 if __name__ == "__main__":
     test_encode_decode()
     test_auto_symbol_counts()
     test_incorrect_data_types()
+    test_empty_array()
