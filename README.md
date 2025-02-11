@@ -57,7 +57,7 @@ assert np.all(decoded == signal)
 
 # Get compression stats
 original_size = signal.nbytes
-compressed_size = encoded.size()  # in bits
+compressed_size = encoded.size()  # in bytes
 compression_ratio = original_size / compressed_size
 print(f"Compression ratio: {compression_ratio:.2f}x")
 ```
