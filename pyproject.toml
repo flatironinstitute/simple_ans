@@ -42,3 +42,17 @@ editable.mode = "redirect"
 
 [tool.scikit-build.cmake.define]
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
+
+[tool.cibuildwheel]
+build-frontend = "build"
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* pp39-* pp310-*"
+manylinux-x86_64-image = "manylinux2014"
+test-command = "python -m pytest {project}/tests"
+test-extras = ["test"]
+config-settings = "cmake.define.ARCH_FLAGS=''"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
