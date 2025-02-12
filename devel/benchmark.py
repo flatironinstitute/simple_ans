@@ -201,6 +201,44 @@ print(
 print(
     f"Time to lzma decompress: {elapsed_lzma_decode:.2f} seconds ({signal_bytes/elapsed_lzma_decode/1e6:.2f} MB/s)"
 )
+print()
+
+# Test blosc
+import blosc2
+
+timer = time.time()
+blosc2.set_blocksize(1<<21)
+compressed = blosc2.compress(signal, codec=blosc2.Codec.ZSTD, clevel=1, filter=blosc2.Filter.BITSHUFFLE)
+elapsed_blosc = time.time() - timer
+blosc_compression_ratio = signal_bytes / len(compressed)
+
+timer = time.time()
+signal_decompressed = np.frombuffer(blosc2.decompress(compressed), dtype=signal.dtype)
+elapsed_blosc_decode = time.time() - timer
+
+results.append(
+    {
+        "name": "blosc",
+        "compression_ratio": float(blosc_compression_ratio),
+        "pct_of_ideal": float(blosc_compression_ratio / ideal_compression_ratio * 100),
+        "encode_time": float(elapsed_blosc),
+        "decode_time": float(elapsed_blosc_decode),
+        "encode_speed_MBps": float(signal_bytes / elapsed_blosc / 1e6),
+        "decode_speed_MBps": float(signal_bytes / elapsed_blosc_decode / 1e6),
+    }
+)
+
+print(f"blosc compression ratio: {blosc_compression_ratio:.2f}")
+print(
+    f"blosc pct of ideal compression: {blosc_compression_ratio/ideal_compression_ratio*100:.2f}%"
+)
+print(
+    f"Time to blosc compress: {elapsed_blosc:.2f} seconds ({signal_bytes/elapsed_blosc/1e6:.2f} MB/s)"
+)
+print(
+    f"Time to blosc decompress: {elapsed_blosc_decode:.2f} seconds ({signal_bytes/elapsed_blosc_decode/1e6:.2f} MB/s)"
+)
+print()
 
 # Save results to JSON
 output = {

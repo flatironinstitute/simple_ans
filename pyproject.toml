@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest"]
-benchmark = ["matplotlib", "zstandard"]
+benchmark = ["matplotlib", "zstandard", "blosc2"]
 
 [tool.scikit-build]
 cmake.version = ">=3.15"
