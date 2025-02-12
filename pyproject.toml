@@ -16,28 +16,29 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
     "numpy>=1.21.0",
 ]
 
+[project.optional-dependencies]
+test = ["pytest"]
+benchmark = ["matplotlib", "zstandard"]
+
 [tool.scikit-build]
-cmake.minimum-version = "3.15"
+cmake.version = ">=3.15"
 cmake.args = []
-cmake.verbose = true
+build.verbose = true
 sdist.include = ["simple_ans/cpp/*"]
 wheel.packages = ["simple_ans"]
 build-dir = "build"
 editable.mode = "redirect"
 
-[tool.setuptools]
-packages = ["simple_ans"]
-
 [tool.scikit-build.cmake.define]
-SKBUILD = "ON"
 CMAKE_POSITION_INDEPENDENT_CODE = "ON"
