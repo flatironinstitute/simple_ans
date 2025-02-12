@@ -15,23 +15,25 @@ While there are certainly many ANS implementations that are parts of other packa
 
 ## Installation
 
-First, install the required dependencies:
+simple_ans is available on PyPI:
 
-```bash
-pip install pybind11 numpy
+```console
+pip install simple-ans
 ```
 
-Then install the package:
+Developers may want to clone the repository and do an editable install:
 
-```bash
-pip install .
-```
-
-Or install from source:
-
-```bash
+```console
+git clone https://github.com/flatironinstitute/simple_ans.git
 cd simple_ans
 pip install -e .
+```
+
+For developers who want automatic rebuilds of the compiled extension:
+
+```console
+pip install "scikit-build-core>=0.5.0" "pybind11>=2.11.1" "pip>=24" ninja
+pip install -e . -Ceditable.rebuild=true --no-build-isolation
 ```
 
 ## Usage
@@ -64,6 +66,14 @@ compression_ratio = original_size / compressed_size
 print(f"Compression ratio: {compression_ratio:.2f}x")
 ```
 
+## Tests
+To run the tests, install with the `test` extra and run `pytest`:
+
+```console
+pip install "simple-ans[test]"
+pytest tests/
+```
+
 ## Simple benchmark
 
 You can run a very simple benchmark that compares simple_ans with `zlib`, `zstandard`, and `lzma` at various compression levels for a toy dataset of quantized Gaussian noise. See [devel/benchmark.py](./devel/benchmark.py) and [devel/benchmark_ans_only.py](./devel/benchmark_ans_only.py).
@@ -73,6 +83,12 @@ The benchmark.py also runs in a CI environment and produces the following graph:
 ![Benchmark](https://github.com/magland/simple_ans/blob/benchmark-results/benchmark-results/benchmark.png?raw=true)
 
 We see that for this example, the ANS-based compression ratio is higher than the other methods, almost reaching the theoretical ideal. The encode rate in MB/s is also fastest for simple_ans. The decode rate is faster than Zlib but slower than Zstandard. I think in principle, we should be able to speed up the decoding. Let me know if you have ideas for this.
+
+To install the benchmark dependencies, use:
+
+```console
+pip install .[benchmark]
+```
 
 ## Extended benchmarks
 
