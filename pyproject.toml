@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "simple_ans"
-version = "0.2.6"
+version = "0.2.7"
 description = "Simple ANS (Asymmetric Numeral Systems) implementation"
 readme = "README.md"
 requires-python = ">=3.8"
