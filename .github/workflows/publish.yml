@@ -64,6 +64,7 @@ jobs:
           path: |
             dist/*.whl
             dist/*.tar.gz
+          overwrite: true
 
   upload_pypi:
     needs: build_wheels
