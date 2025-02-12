@@ -62,18 +62,4 @@ endif()
 
 
 # Install rules
-include(GNUInstallDirs)
-install(TARGETS _simple_ans
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-install(FILES ${HEADERS}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/simple_ans
-)
-
-# For editable installs, copy the extension module to the source directory
-add_custom_command(TARGET _simple_ans POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_simple_ans> ${CMAKE_SOURCE_DIR}/simple_ans/
-    COMMENT "Copying extension module to source directory for editable install"
-)
+install(TARGETS _simple_ans LIBRARY DESTINATION simple_ans)
