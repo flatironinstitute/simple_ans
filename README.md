@@ -9,6 +9,8 @@ I used the following to guide the implementation:
 
 While there are certainly many ANS implementations that are parts of other packages, this one strives to be as simple as possible, with the [C++ implementation](./simple_ans/cpp) being just a small amount of code in a single file. The Python interface is also simple and easy to use. At the same time it attempts to be as efficient as possible both in terms of compression ratio and encoding/decoding speed.
 
+> **Important**: This implementation is designed for data with approximately 2 to 5000 distinct values. Performance may degrade significantly with datasets containing more unique values.
+
 [Technical overview of ANS and Streaming ANS](./doc/technical_overview.md)
 
 ## Installation
