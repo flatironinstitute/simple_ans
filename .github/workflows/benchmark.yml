@@ -1,0 +1,82 @@
+name: Run Benchmarks
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [ main ]  # Run on main branch pushes
+  pull_request:  # Run on all pull requests
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install -e ".[test]"
+
+      - name: Run tests
+        run: python -m pytest tests/
+
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install ".[benchmark]"
+
+      - name: Run benchmarks
+        run: |
+          python devel/benchmark.py
+          python devel/benchmark2.py
+
+      - name: Configure Git
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Upload benchmark results as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark_output/benchmark.json
+            benchmark_output/benchmark.png
+            benchmark_output/benchmark2.json
+            benchmark_output/benchmark2_compression_ratio.png
+            benchmark_output/benchmark2_encode_rate.png
+            benchmark_output/benchmark2_decode_rate.png
+
+      - name: Move benchmark files
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p benchmark-results
+          cp benchmark_output/benchmark.json benchmark-results/
+          cp benchmark_output/benchmark.png benchmark-results/
+          cp benchmark_output/benchmark2.json benchmark-results/
+          cp benchmark_output/benchmark2_compression_ratio.png benchmark-results/
+          cp benchmark_output/benchmark2_encode_rate.png benchmark-results/
+          cp benchmark_output/benchmark2_decode_rate.png benchmark-results/
+
+      - name: Create fresh results branch
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        run: |
+          git checkout --orphan benchmark-results
+
+      - name: Commit benchmark results
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add benchmark-results/
+          git commit -m "Update benchmark results from $(date +'%Y-%m-%d %H:%M:%S') [skip ci]"
+          git push -f https://${GITHUB_TOKEN}@github.com/${{ github.repository }} benchmark-results

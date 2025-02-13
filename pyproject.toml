@@ -1,0 +1,58 @@
+[build-system]
+requires = ["scikit-build-core>=0.5.0", "pybind11>=2.11.1"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "simple_ans"
+version = "0.2.7"
+description = "Simple ANS (Asymmetric Numeral Systems) implementation"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "Jeremy Magland", email = "jmagland@flatironinstitute.org" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.21.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+benchmark = ["matplotlib", "zstandard", "blosc2"]
+
+[tool.scikit-build]
+cmake.version = ">=3.15"
+cmake.args = []
+build.verbose = true
+sdist.include = ["simple_ans/cpp/*"]
+wheel.packages = ["simple_ans"]
+build-dir = "build"
+editable.mode = "redirect"
+
+[tool.scikit-build.cmake.define]
+CMAKE_POSITION_INDEPENDENT_CODE = "ON"
+
+[tool.cibuildwheel]
+build-frontend = "build"
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* pp39-* pp310-*"
+manylinux-x86_64-image = "manylinux2014"
+test-command = "python -m pytest {project}/tests"
+test-extras = ["test"]
+config-settings = "cmake.define.ARCH_FLAGS=''"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
