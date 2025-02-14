@@ -1,11 +1,15 @@
-import os
 import json
+import os
 import time
-import numpy as np
-import matplotlib.pyplot as plt
-from simple_ans import ans_encode, ans_decode
-import zstandard as zstd
 import zlib
+
+import blosc2
+import matplotlib.pyplot as plt
+import numpy as np
+import zstandard as zstd
+
+from simple_ans import ans_decode, ans_encode
+
 
 def calculate_ideal_compression_ratio(signal):
     vals, counts = np.unique(signal, return_counts=True)
@@ -85,6 +89,29 @@ def get_compression_stats(signal):
         num_runs += 1
     elapsed_zlib_decode = (time.time() - timer) / num_runs
 
+    # Test blosc
+    # First compress to get initial values
+    blosc2.set_nthreads(1)
+    blosc2.set_blocksize(1<<21)
+    compressed = blosc2.compress(signal.tobytes(), codec=blosc2.Codec.ZSTD, clevel=1, filter=blosc2.Filter.BITSHUFFLE)
+    blosc_ratio = original_bits / (len(compressed) * 8)
+
+    # Encode timing
+    timer = time.time()
+    num_runs = 0
+    while time.time() - timer < 0.3:  # Run for at least 0.3 second
+        _ = blosc2.compress(signal.tobytes(), codec=blosc2.Codec.ZSTD, clevel=1, filter=blosc2.Filter.BITSHUFFLE)
+        num_runs += 1
+    elapsed_blosc_encode = (time.time() - timer) / num_runs
+
+    # Decode timing
+    timer = time.time()
+    num_runs = 0
+    while time.time() - timer < 0.3:  # Run for at least 0.3 second
+        _ = blosc2.decompress(compressed)
+        num_runs += 1
+    elapsed_blosc_decode = (time.time() - timer) / num_runs
+
     return {
         'ideal': float(ideal_ratio),
         'simple_ans': {
@@ -101,6 +128,11 @@ def get_compression_stats(signal):
             'ratio': float(zlib_ratio),
             'encode_MBps': float(signal_bytes / elapsed_zlib_encode / 1e6),
             'decode_MBps': float(signal_bytes / elapsed_zlib_decode / 1e6)
+        },
+        'blosc': {
+            'ratio': float(blosc_ratio),
+            'encode_MBps': float(signal_bytes / elapsed_blosc_encode / 1e6),
+            'decode_MBps': float(signal_bytes / elapsed_blosc_decode / 1e6)
         }
     }
 
@@ -172,6 +204,7 @@ ideal_ratios = []
 simple_ans_ratios = []
 zstd_ratios = []
 zlib_ratios = []
+blosc_ratios = []
 
 current_pos = 0
 for dist_type in ['bernoulli', 'gaussian', 'poisson']:
@@ -183,8 +216,9 @@ for dist_type in ['bernoulli', 'gaussian', 'poisson']:
         simple_ans_ratios.append(r['ratios']['simple_ans']['ratio'])
         zstd_ratios.append(r['ratios']['zstd-22']['ratio'])
         zlib_ratios.append(r['ratios']['zlib-9']['ratio'])
-        current_pos += 1
-    current_pos += 1  # Add gap between distribution groups
+        blosc_ratios.append(r['ratios']['blosc']['ratio'])
+        current_pos += 1.2
+    current_pos += 0.5  # Add gap between distribution groups
 
 width = 0.2
 
@@ -193,6 +227,7 @@ ax.barh([y + 1.5*width for y in y_positions], ideal_ratios, width, label='Ideal'
 ax.barh([y + 0.5*width for y in y_positions], simple_ans_ratios, width, label='simple_ans', color='skyblue')
 ax.barh([y - 0.5*width for y in y_positions], zstd_ratios, width, label='zstd-22', color='lightgreen')
 ax.barh([y - 1.5*width for y in y_positions], zlib_ratios, width, label='zlib-9', color='lightpink')
+ax.barh([y - 2.5*width for y in y_positions], blosc_ratios, width, label='blosc', color='mediumpurple')
 
 # Customize plot
 ax.set_xlabel('Compression Ratio')
@@ -215,6 +250,7 @@ add_value_labels_ratio(ax.containers[0])  # Ideal
 add_value_labels_ratio(ax.containers[1])  # simple_ans
 add_value_labels_ratio(ax.containers[2])  # zstd-22
 add_value_labels_ratio(ax.containers[3])  # zlib-9
+add_value_labels_ratio(ax.containers[4])  # blosc
 
 plt.tight_layout()
 plt.savefig("benchmark_output/benchmark2_compression_ratio.png")
@@ -231,6 +267,7 @@ zstd_encode = [r['ratios']['zstd-22']['encode_MBps'] for r in results]
 ax.barh([y + width for y in y_positions], simple_ans_encode, width, label='simple_ans', color='skyblue')
 ax.barh(y_positions, zstd_encode, width, label='zstd-22', color='lightgreen')
 ax.barh([y - width for y in y_positions], [r['ratios']['zlib-9']['encode_MBps'] for r in results], width, label='zlib-9', color='lightpink')
+ax.barh([y - 2 * width for y in y_positions], [r['ratios']['blosc']['encode_MBps'] for r in results], width, label='blosc', color='mediumpurple')
 
 # Customize plot
 ax.set_xlabel('Encode Speed (MB/s)')
@@ -251,6 +288,7 @@ def add_value_labels_speed(rects):
 add_value_labels_speed(ax.containers[0])  # simple_ans
 add_value_labels_speed(ax.containers[1])  # zstd-22
 add_value_labels_speed(ax.containers[2])  # zlib-9
+add_value_labels_speed(ax.containers[3])  # blosc
 
 plt.tight_layout()
 plt.savefig("benchmark_output/benchmark2_encode_rate.png")
@@ -267,6 +305,7 @@ zstd_decode = [r['ratios']['zstd-22']['decode_MBps'] for r in results]
 ax.barh([y + width for y in y_positions], simple_ans_decode, width, label='simple_ans', color='skyblue')
 ax.barh(y_positions, zstd_decode, width, label='zstd-22', color='lightgreen')
 ax.barh([y - width for y in y_positions], [r['ratios']['zlib-9']['decode_MBps'] for r in results], width, label='zlib-9', color='lightpink')
+ax.barh([y - 2 * width for y in y_positions], [r['ratios']['blosc']['decode_MBps'] for r in results], width, label='blosc', color='mediumpurple')
 
 # Customize plot
 ax.set_xlabel('Decode Speed (MB/s)')
@@ -278,6 +317,7 @@ ax.legend()
 add_value_labels_speed(ax.containers[0])  # simple_ans
 add_value_labels_speed(ax.containers[1])  # zstd-22
 add_value_labels_speed(ax.containers[2])  # zlib-9
+add_value_labels_speed(ax.containers[3])  # blosc
 
 plt.tight_layout()
 plt.savefig("benchmark_output/benchmark2_decode_rate.png")

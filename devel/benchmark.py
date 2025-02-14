@@ -207,6 +207,7 @@ print()
 import blosc2
 
 timer = time.time()
+blosc2.set_nthreads(1)
 blosc2.set_blocksize(1<<21)
 compressed = blosc2.compress(signal, codec=blosc2.Codec.ZSTD, clevel=1, filter=blosc2.Filter.BITSHUFFLE)
 elapsed_blosc = time.time() - timer
