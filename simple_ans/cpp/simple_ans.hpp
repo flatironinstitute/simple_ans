@@ -340,7 +340,6 @@ EncodedData ans_encode_t(const T* signal,
     {
         uint32_t state_normalized = state;
         const uint32_t L_s = symbol_counts[s_ind];
-        auto iterations =0;
         // Otherwise, perform normalization.
         while (state_normalized >= 2 * L_s)
         {
@@ -349,7 +348,6 @@ EncodedData ans_encode_t(const T* signal,
             bitstream[word_idx] |= static_cast<uint64_t>(state_normalized & 1) << bit_idx;
             ++num_bits;
             state_normalized >>= 1;
-            iterations ++;
         }
         // Update state after normalization.
         state = L + C[s_ind] + state_normalized - L_s;
