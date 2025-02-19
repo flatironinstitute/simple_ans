@@ -112,6 +112,9 @@ T vector_accumulate(const T* data, const size_t n, const T init = T(0))
     constexpr static size_t block_size = VECTOR_WIDTH/sizeof(T);
     alignas(64) std::array<T, block_size> sums{T(0)};
     const auto pow2_size = n & -block_size;
+#pragma GCC ivdep
+#pragma clang loop vectorize(enable)
+#pragma omp simd
     for (size_t i = 0; i < pow2_size; i += block_size)
     {
         for (size_t j = 0; j < block_size; ++j)
@@ -144,6 +147,9 @@ void vector_inclusive_scan(const T* input, T* aligned_output, const size_t num_s
 
     T s = 0; // running sum from previous blocks
     size_t i = 0;
+#pragma GCC ivdep
+#pragma clang loop vectorize(enable)
+#pragma omp simd
     for (; i < pow2_size; i += block_size) {
         constexpr size_t Half = block_size / 2;
         // --- Process first lane (elements i ... i+Half-1) ---
@@ -301,8 +307,8 @@ EncodedData ans_encode_t(const T* signal,
     // Pre-compute cumulative sums
     AlignedVector<uint32_t> C(num_symbols);
     vector_inclusive_scan(symbol_counts, C.data(), num_symbols);
-    // Create symbol index lookup (for fallback)
 
+    // Create symbol index lookup (for fallback)
     const auto [symbol_index_lookup, min_symbol, max_symbol] = [symbol_values, num_symbols]
     {
         ankerl::unordered_dense::map<T, size_t>&& symbol_index_lookup{};
@@ -405,26 +411,19 @@ void ans_decode_t(T* output,
                   size_t num_symbols)
 {
     // Calculate L and verify it's a power of 2
-    uint32_t L = 0;
-    for (size_t i = 0; i < num_symbols; ++i)
-    {
-        L += symbol_counts[i];
-    }
+    const auto L = vector_accumulate(symbol_counts, num_symbols);
     if (!is_power_of_2(L))
     {
         throw std::invalid_argument("L must be a power of 2");
     }
 
     // Pre-compute cumulative sums
-    std::vector<uint32_t> C(num_symbols);
-    C[0] = 0;
-    for (size_t i = 1; i < num_symbols; ++i)
-    {
-        C[i] = C[i - 1] + symbol_counts[i - 1];
-    }
+    AlignedVector<uint32_t> C(num_symbols);
+    vector_inclusive_scan(symbol_counts, C.data(), num_symbols);
+
 
     // Create symbol lookup table
-    std::vector<uint32_t> symbol_lookup(L);
+    AlignedVector<uint32_t> symbol_lookup(L);
     for (size_t s = 0; s < num_symbols; ++s)
     {
         for (uint32_t j = 0; j < symbol_counts[s]; ++j)
@@ -434,7 +433,7 @@ void ans_decode_t(T* output,
     }
 
     // Create state update table
-    std::vector<uint32_t> state_update(L);
+    AlignedVector<uint32_t> state_update(L);
     for (uint32_t i = 0; i < L; ++i)
     {
         uint32_t s = symbol_lookup[i];
@@ -448,7 +447,8 @@ void ans_decode_t(T* output,
     {
         max_f_s = std::max(max_f_s, symbol_counts[s]);
     }
-    std::vector<uint32_t> bit_count_table(2 * max_f_s);
+    AlignedVector<uint32_t> bit_count_table(2 * max_f_s);
+
     for (uint32_t i = 1; i < 2 * max_f_s; ++i)
     {
         uint32_t d = 0;
