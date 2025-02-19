@@ -355,56 +355,6 @@ EncodedData ans_encode_t(const T* signal,
         state = L + C[s_ind] + state_normalized - L_s;
     };
 
-    constexpr auto block_size = 512/sizeof(T);
-    // Fixed-size storage for each symbol in the block.
-    std::array<int, block_size> k{};             // Number of normalization iterations per symbol.
-    std::array<uint32_t, block_size> normalized{}; // Final normalized state for each symbol.
-
-    // Use a vector for each symbol to hold normalization bits (to avoid a fixed MAX_K).
-    std::array<std::vector<uint64_t>, block_size> norm_bits{};
-    auto encode_block = [&](const std::array<size_t, block_size>& symbol_indices) {
-
-        // Carry dependency: state_block holds the state as it is updated symbol by symbol.
-        uint32_t state_block = state;
-
-        // First pass: Process each symbol in the block.
-        for (size_t i = 0; i < block_size; ++i) {
-            size_t s_ind = symbol_indices[i];
-            const uint32_t L_s = symbol_counts[s_ind];
-            uint32_t current = state_block;
-            int j = 0;
-
-            // While the state is too high, extract bits and update 'current'.
-            while (current >= 2 * L_s) {
-                norm_bits[i].push_back(current & 1); // Save the least-significant bit.
-                current >>= 1;
-                ++j;
-            }
-            k[i] = j;
-            normalized[i] = current;
-
-            // Update the state for the next symbol:
-            // ANS update: state = L + C[s_ind] + current - L_s.
-            state_block = L + C[s_ind] + current - L_s;
-        }
-
-        // Update the global state after processing the block.
-        state = state_block;
-
-        // Second pass: Write out the precomputed normalization bits into the bitstream.
-        for (size_t i = 0; i < block_size; ++i) {
-            for (size_t j = 0; j < norm_bits[i].size(); ++j) {
-                size_t word_idx = num_bits >> 6;  // Divide by 64.
-                size_t bit_idx  = num_bits & 63;   // Modulo 64.
-                bitstream[word_idx] |= norm_bits[i][j] << bit_idx;
-                ++num_bits;
-            }
-        }
-
-        for (auto& v : norm_bits) {
-            v.clear();
-        }
-    };
 
     // Encode each symbol using the appropriate lookup method
     if (use_lookup_array)
@@ -428,21 +378,6 @@ EncodedData ans_encode_t(const T* signal,
     }
     else
     {
-        const auto pow2_size = signal_size & -block_size;
-        std::array<std::size_t, block_size> symbol_indices{};
-        for (size_t i = 0; i < pow2_size; i += block_size)
-        {
-            for (size_t j = 0; j < block_size; ++j)
-            {
-                const auto it = symbol_index_lookup.find(signal[i+j]);
-                if (it == symbol_index_lookup.end())
-                {
-                    throw std::invalid_argument("Signal value not found in symbol_values");
-                }
-                symbol_indices[j] = it->second;
-            }
-            encode_block(symbol_indices);
-        }
         for (size_t i = 0; i < signal_size; ++i)
         {
             auto it = symbol_index_lookup.find(signal[i]);
