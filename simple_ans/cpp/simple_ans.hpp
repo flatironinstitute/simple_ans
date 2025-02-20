@@ -8,9 +8,9 @@
 #include <memory>
 #include <numeric>
 
-#include <ankerl/unordered_dense.h>
 
-#include <iostream>
+#include <hash_table7.hpp>
+
 
 #if defined(__AVX512F__) || defined(_M_AVX512)
     #define VECTOR_WIDTH 512
@@ -112,11 +112,11 @@ T vector_accumulate(const T* data, const size_t n, const T init = T(0))
     constexpr static size_t block_size = VECTOR_WIDTH/sizeof(T);
     alignas(64) std::array<T, block_size> sums{T(0)};
     const auto pow2_size = n & -block_size;
+    for (size_t i = 0; i < pow2_size; i += block_size)
+    {
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
 #pragma omp simd
-    for (size_t i = 0; i < pow2_size; i += block_size)
-    {
         for (size_t j = 0; j < block_size; ++j)
         {
             sums[j] += data[i + j];
@@ -136,22 +136,22 @@ void vector_inclusive_scan(const T* input, T* aligned_output, const size_t num_s
 #if defined(__GNUC__) || defined(__clang__)
     aligned_output = static_cast<T*>(__builtin_assume_aligned(aligned_output, 64));
 #endif
-    static constexpr size_t block_size = VECTOR_WIDTH*2/sizeof(T);
+    static constexpr auto block_size = VECTOR_WIDTH*2/sizeof(T);
     // Set the first element to 0
     aligned_output[0] = 0;
     // Let n be the number of elements in the input array.
-    size_t n = num_symbols - 1;
+    const auto n = num_symbols - 1;
 
     // Process blocks of size N.
-    size_t pow2_size = n & ~(block_size - 1); // largest multiple of N less than or equal to n
+    const auto pow2_size = n & ~(block_size - 1); // largest multiple of N less than or equal to n
 
-    T s = 0; // running sum from previous blocks
     size_t i = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
 #pragma omp simd
-    for (; i < pow2_size; i += block_size) {
-        constexpr size_t Half = block_size / 2;
+    for (T s = 0; i < pow2_size; i += block_size) // s: running sum from previous blocks
+        {
+        static constexpr size_t Half = block_size / 2;
         // --- Process first lane (elements i ... i+Half-1) ---
         // Write the first prefix element: output[i+1] = input[i] + running sum.
         aligned_output[i + 1] = input[i] + s;
@@ -160,10 +160,10 @@ void vector_inclusive_scan(const T* input, T* aligned_output, const size_t num_s
             aligned_output[i + 1 + j] = aligned_output[i + j] + input[i + j];
         }
         // Save the last value of lane 0 as the local block sum.
-        T lane0_sum = aligned_output[i + Half];
+        const T lane0_sum = aligned_output[i + Half];
 
         // --- Process second lane (elements i+Half ... i+N-1) ---
-        T temp[Half]; // temporary storage for the local prefix of lane 1
+        alignas(64) std::array<T, Half> temp{};
         temp[0] = input[i + Half];
         for (size_t j = 1; j < Half; ++j) {
             temp[j] = temp[j - 1] + input[i + Half + j];
@@ -311,16 +311,19 @@ EncodedData ans_encode_t(const T* signal,
     // Create symbol index lookup (for fallback)
     const auto [symbol_index_lookup, min_symbol, max_symbol] = [symbol_values, num_symbols]
     {
-        ankerl::unordered_dense::map<T, size_t>&& symbol_index_lookup{};
+        emhash7::HashMap<T, size_t>&& symbol_index_lookup{};
         int64_t min_symbol = symbol_values[0];
         int64_t max_symbol = symbol_values[0];
+#pragma GCC ivdep
+#pragma clang loop vectorize(enable)
+#pragma omp simd
         for (size_t i = 0; i < num_symbols; ++i)
         {
             symbol_index_lookup[symbol_values[i]] = i;
             min_symbol = std::min(min_symbol, static_cast<int64_t>(symbol_values[i]));
             max_symbol = std::max(max_symbol, static_cast<int64_t>(symbol_values[i]));
         }
-        return std::tuple{symbol_index_lookup, min_symbol, max_symbol};
+        return std::tuple{std::move(symbol_index_lookup), min_symbol, max_symbol};
     }();
 
     // Decide whether to use a lookup array
@@ -338,19 +341,19 @@ EncodedData ans_encode_t(const T* signal,
     }
 
     // Initialize state and packed bitstream
-    uint32_t state = L;
+    auto state = L;
     std::vector<uint64_t> bitstream((signal_size * 32 + 63) / 64, 0);  // Preallocate worst case
     size_t num_bits = 0;
 
     const auto encode_symbol = [&](const size_t s_ind)
     {
-        uint32_t state_normalized = state;
-        const uint32_t L_s = symbol_counts[s_ind];
+        auto state_normalized = state;
+        const auto L_s = symbol_counts[s_ind];
         // Otherwise, perform normalization.
-        while (state_normalized >= 2 * L_s)
+        while (state_normalized >= 2*L_s)
         {
-            const size_t word_idx = num_bits >> 6;  // Divide by 64
-            const size_t bit_idx  = num_bits & 63;   // Modulo 64
+            const auto word_idx = num_bits >> 6;  // Divide by 64
+            const auto bit_idx  = num_bits & 63;   // Modulo 64
             bitstream[word_idx] |= static_cast<uint64_t>(state_normalized & 1) << bit_idx;
             ++num_bits;
             state_normalized >>= 1;
