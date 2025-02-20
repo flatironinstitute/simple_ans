@@ -1,32 +1,13 @@
 #pragma once
 
+#include "utils.hpp"
+
 #include <bit>
 #include <cassert>
-#include <cstdint>
 #include <limits>
-#include <memory>
-#include <numeric>
 #include <stdexcept>
-#include <vector>
 
 #include <hash_table7.hpp>
-#include <optional>
-
-#if defined(__AVX512F__) || defined(_M_AVX512)
-#define VECTOR_WIDTH (512/8)
-#elif defined(__AVX__) || defined(_M_AVX)
-#define VECTOR_WIDTH (256/8)
-#elif defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-#define VECTOR_WIDTH (128/8)
-#elif defined(__ARM_NEON) || defined(__aarch64__)  // ARM NEON support
-#define VECTOR_WIDTH (128/8)
-#elif defined(__VSX__)  // PowerPC VSX (Vector Scalar eXtension)
-#define VECTOR_WIDTH (128/8)
-#elif defined(__ALTIVEC__)  // PowerPC AltiVec
-#define VECTOR_WIDTH (128/8)
-#else
-#define VECTOR_WIDTH (64/8)  // Default scalar width
-#endif
 
 namespace simple_ans
 {
@@ -34,7 +15,7 @@ namespace simple_ans
 struct EncodedData
 {
     uint32_t state;
-    std::vector<uint64_t>
+    utils::AlignedVector<uint64_t>
         bitstream;    // Each uint64_t contains 64 bits, with padding in last word if needed
     size_t num_bits;  // Actual number of bits used (may be less than bitstream.size() * 64)
 };
@@ -42,100 +23,28 @@ struct EncodedData
 // Helper function to verify if a number is a power of 2
 inline bool is_power_of_2(uint32_t x)
 {
-    return x && !(x & (x - 1));
+    return std::has_single_bit(x);
 }
-
-template <typename T, std::size_t Alignment = alignof(T)>
-struct aligned_allocator
-{
-    using value_type = T;
-    using pointer = T*;
-    using const_pointer = const T*;
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-
-    template <class U>
-    struct rebind
-    {
-        using other = aligned_allocator<U, Alignment>;
-    };
-
-    aligned_allocator() noexcept = default;
-
-    template <typename U>
-    explicit aligned_allocator(const aligned_allocator<U, Alignment>&) noexcept
-    {
-    }
-
-    // Allocates memory for n objects of type T with the specified alignment.
-    static T* allocate(std::size_t n)
-    {
-        if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
-            throw std::bad_alloc();
-
-        std::size_t bytes = n * sizeof(T);
-
-        // std::aligned_alloc requires that 'bytes' is a multiple of Alignment.
-        if (bytes % Alignment != 0)
-        {
-            bytes = ((bytes / Alignment) + 1) * Alignment;
-        }
-
-        void* ptr = std::aligned_alloc(Alignment, bytes);
-        if (!ptr)
-            throw std::bad_alloc();
-        return static_cast<T*>(ptr);
-    }
-
-    // Deallocates the memory pointed to by p.
-    static void deallocate(T* p, std::size_t /*n*/) noexcept
-    {
-        std::free(p);
-    }
-};
-
-// Two allocators are always considered equal.
-template <typename T, typename U, std::size_t Alignment>
-bool operator==(const aligned_allocator<T, Alignment>&,
-                const aligned_allocator<U, Alignment>&) noexcept
-{
-    return true;
-}
-
-template <typename T, typename U, std::size_t Alignment>
-bool operator!=(const aligned_allocator<T, Alignment>&,
-                const aligned_allocator<U, Alignment>&) noexcept
-{
-    return false;
-}
-
-// Create an aligned vector with custom allocator
-template <typename T, std::size_t Alignment = 64>
-using AlignedVector = std::vector<T, aligned_allocator<T, Alignment>>;
 
 // require the type to be numeric
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 T vector_accumulate(const T* data, const size_t n, const T init = T(0))
 {
-    constexpr static size_t block_size = VECTOR_WIDTH / sizeof(T);
-    alignas(alignof(T)) std::array<T, block_size> sums{T(0)};
+    constexpr static auto block_size = utils::VECTOR_WIDTH / sizeof(T);
+    alignas(utils::VECTOR_WIDTH) std::array<T, block_size> sums{T(0)};
     const auto pow2_size = n & -block_size;
-    for (size_t i = 0; i < pow2_size; i += block_size)
+    size_t i = 0;
+    for (; i < pow2_size; i += block_size)
     {
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
 #pragma omp simd
-        for (size_t j = 0; j < block_size; ++j)
+        for (uint_fast8_t j = 0; j < block_size; ++j)
         {
             sums[j] += data[i + j];
         }
     }
-    auto sum = std::accumulate(sums.begin(), sums.end(), init);
-    for (size_t i = pow2_size; i < n; ++i)
-    {
-        sum += data[i];
-    }
-    return sum;
+    return std::accumulate(sums.begin(), sums.end(), std::accumulate(data + i, data + n, init));
 }
 
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
@@ -143,30 +52,31 @@ void vector_inclusive_scan(const T* input, T* aligned_output, const size_t num_s
 {
     // assume aligned output
 #if defined(__GNUC__) || defined(__clang__)
-    aligned_output = static_cast<T*>(__builtin_assume_aligned(aligned_output, 64));
+    aligned_output = static_cast<T*>(__builtin_assume_aligned(aligned_output, utils::VECTOR_WIDTH));
 #endif
-    static constexpr auto block_size = VECTOR_WIDTH * 2 / sizeof(T);
+    static constexpr auto block_size = utils::VECTOR_WIDTH * 2 / sizeof(T);
     // Set the first element to 0
     aligned_output[0] = 0;
     // Let n be the number of elements in the input array.
     const auto n = num_symbols - 1;
 
     // Process blocks of size N.
-    const auto pow2_size = n & ~(block_size - 1);  // largest multiple of N less than or equal to n
 
     static constexpr auto Half = block_size / 2;
-    alignas(alignof(T)) std::array<T, Half> temp{};
+    alignas(utils::VECTOR_WIDTH) std::array<T, Half> temp{};
+
+    const auto pow2_size = n & -block_size;  // largest multiple of N less than or equal to n
 
     size_t i = 0;
-#pragma GCC ivdep
-#pragma clang loop vectorize(enable)
-#pragma omp simd
     for (T s = 0; i < pow2_size; i += block_size)  // s: running sum from previous blocks
     {
         // --- Process first lane (elements i ... i+Half-1) ---
         // Write the first prefix element: output[i+1] = input[i] + running sum.
         aligned_output[i + 1] = input[i] + s;
-        for (size_t j = 1; j < Half; ++j)
+#pragma GCC ivdep
+#pragma clang loop vectorize(enable)
+#pragma omp simd
+        for (uint_fast8_t j = 1; j < Half; ++j)
         {
             // Each output element is the sum of the previous output and the current input.
             aligned_output[i + 1 + j] = aligned_output[i + j] + input[i + j];
@@ -177,7 +87,10 @@ void vector_inclusive_scan(const T* input, T* aligned_output, const size_t num_s
         // --- Process second lane (elements i+Half ... i+N-1) ---
 
         temp[0] = input[i + Half];
-        for (size_t j = 1; j < Half; ++j)
+#pragma GCC ivdep
+#pragma clang loop vectorize(enable)
+#pragma omp simd
+        for (uint_fast8_t j = 1; j < Half; ++j)
         {
             temp[j] = temp[j - 1] + input[i + Half + j];
         }
@@ -223,11 +136,12 @@ void ans_decode_t(T* output,
 
 namespace simple_ans
 {
-constexpr int unique_array_threshold = static_cast<int>(std::numeric_limits<uint16_t>::max()) + 1;
-constexpr int lookup_array_threshold = unique_array_threshold;
+constexpr auto unique_array_threshold = static_cast<int>(std::numeric_limits<uint16_t>::max()) + 1;
+constexpr auto lookup_array_threshold = unique_array_threshold;
 
 template <typename T>
-std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* values, size_t n)
+std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* values,
+                                                                     const size_t n)
 {
     // WARNING: This is ONLY a helper function. It doesn't support arrays with a large domain, and
     // will instead fail return empty vectors. It is up to the caller to handle this case
@@ -293,7 +207,7 @@ inline void read_bits_from_end_of_bitstream(const uint64_t* bitstream,
     else
     {
         // this is possibly the slower case, but should be less common
-        for (uint32_t j = 0; j < d; ++j)
+        for (uint_fast32_t j = 0; j < d; ++j)
         {
             uint32_t word_idx = (source_bit_position - j) >> 6;  // Divide by 64
             uint32_t bit_idx = (source_bit_position - j) & 63;   // Modulo 64
@@ -321,7 +235,7 @@ EncodedData ans_encode_t(const T* signal,
     }
 
     // Pre-compute cumulative sums
-    AlignedVector<uint32_t> C(num_symbols);
+    utils::AlignedVector<uint32_t> C(num_symbols);
     vector_inclusive_scan(symbol_counts, C.data(), num_symbols);
 
     // Create symbol index lookup (for fallback)
@@ -349,20 +263,21 @@ EncodedData ans_encode_t(const T* signal,
     {
         if (use_lookup_array)
         {
-            std::vector<size_t> lookup_array(max_symbol - min_symbol + 1,
-                                                          std::numeric_limits<size_t>::max());
+            utils::AlignedVector<size_t> lookup_array(max_symbol - min_symbol + 1,
+                                                      std::numeric_limits<size_t>::max());
             for (size_t i = 0; i < num_symbols; ++i)
             {
                 lookup_array[symbol_values[i] - min_symbol] = i;
             }
             return lookup_array;
         }
-        return std::vector<size_t>(0);
+        return utils::AlignedVector<size_t>(0);
     }();
 
     // Initialize state and packed bitstream
+    utils::AlignedVector<uint64_t> bitstream((signal_size * 32 + 63) / 64,
+                                             0);  // Preallocate worst case
     auto state = L;
-    std::vector<uint64_t> bitstream((signal_size * 32 + 63) / 64, 0);  // Preallocate worst case
     size_t num_bits = 0;
 
     const auto encode_symbol = [&](const size_t s_ind) constexpr noexcept
@@ -387,70 +302,34 @@ EncodedData ans_encode_t(const T* signal,
     {
         for (size_t i = 0; i < signal_size; ++i)
         {
+
             const int64_t lookup_ind = signal[i] - min_symbol;
             if (lookup_ind < 0 ||
                 lookup_ind >= static_cast<int64_t>(symbol_index_lookup_array.size())) [[unlikely]]
             {
                 throw std::invalid_argument("Signal value not found in symbol_values");
             }
+
             const size_t s_ind = symbol_index_lookup_array[lookup_ind];
             if (s_ind == std::numeric_limits<size_t>::max()) [[unlikely]]
             {
                 throw std::invalid_argument("Signal value not found in symbol_values");
             }
-            // Optionally, you can assert that s_ind matches the map lookup:
-            // assert(s_ind == symbol_index_lookup[signal[i]]);
+
             encode_symbol(s_ind);
         }
     }
     else
     {
-        static constexpr size_t SIMD_WIDTH = VECTOR_WIDTH/sizeof(size_t); // Process 8 elements at a time
-
-        alignas(alignof(size_t)) std::array<size_t, SIMD_WIDTH> indices{};
-        // First loop: Check for errors in batches of 8
-        size_t i = 0;
-        for (; i  < (signal_size & -SIMD_WIDTH); i += SIMD_WIDTH)
+        for (size_t i = 0; i < signal_size; ++i)
         {
-            for (size_t j = 0; j < SIMD_WIDTH; ++j)
-            {
-                if (symbol_index_lookup.find(signal[i + j]) == symbol_index_lookup.end()) [[unlikely]]
-                {
-                    throw std::invalid_argument("Signal value not found in symbol_values");
-                }
-            }
-
-            // Precompute symbol indices
-#pragma GCC ivdep
-#pragma clang loop vectorize(enable)
-#pragma omp simd
-            for (size_t j = 0; j < SIMD_WIDTH; ++j)
-            {
-                indices[j] = symbol_index_lookup.find(signal[i + j])->second;
-            }
-
-            // Encode symbols in a batch
-#pragma GCC ivdep
-#pragma clang loop vectorize(enable)
-#pragma omp simd
-            for (unsigned long & index : indices)
-            {
-                encode_symbol(index);
-            }
-        }
-
-
-        // Third loop: Handle remaining elements (less than 8)
-        for (; i < signal_size; ++i)
-        {
-            auto it = symbol_index_lookup.find(signal[i]);
+            const auto it = symbol_index_lookup.find(signal[i]);
             if (it == symbol_index_lookup.end()) [[unlikely]]
             {
                 throw std::invalid_argument("Signal value not found in symbol_values");
             }
             encode_symbol(it->second);
         }
-
     }
 
     // Truncate bitstream to the actual size used
@@ -478,11 +357,11 @@ void ans_decode_t(T* output,
     }
 
     // Pre-compute cumulative sums
-    AlignedVector<uint32_t> C(num_symbols);
+    utils::AlignedVector<uint32_t> C(num_symbols);
     vector_inclusive_scan(symbol_counts, C.data(), num_symbols);
 
     // Create symbol lookup table
-    AlignedVector<uint32_t> symbol_lookup(L);
+    utils::AlignedVector<uint32_t> symbol_lookup(L);
     for (size_t s = 0; s < num_symbols; ++s)
     {
         for (uint32_t j = 0; j < symbol_counts[s]; ++j)
@@ -492,8 +371,8 @@ void ans_decode_t(T* output,
     }
 
     // Create state update table
-    AlignedVector<uint32_t> state_update(L);
-    for (uint32_t i = 0; i < L; ++i)
+    utils::AlignedVector<uint32_t> state_update(L);
+    for (uint_fast32_t i = 0; i < L; ++i)
     {
         uint32_t s = symbol_lookup[i];
         uint32_t f_s = symbol_counts[s];
@@ -506,9 +385,9 @@ void ans_decode_t(T* output,
     {
         max_f_s = std::max(max_f_s, symbol_counts[s]);
     }
-    AlignedVector<uint32_t> bit_count_table(2 * max_f_s);
+    utils::AlignedVector<uint32_t> bit_count_table(2 * max_f_s);
 
-    for (uint32_t i = 1; i < 2 * max_f_s; ++i)
+    for (uint_fast32_t i = 1; i < 2 * max_f_s; ++i)
     {
         bit_count_table[i] = std::bit_width((L - 1) / i);
     }
@@ -519,12 +398,12 @@ void ans_decode_t(T* output,
     // Decode symbols in reverse order
     for (size_t i = 0; i < n; ++i)
     {
-        uint32_t s_ind = symbol_lookup[state - L];
+        const auto s_ind = symbol_lookup[state - L];
         output[n - 1 - i] = symbol_values[s_ind];
 
-        uint32_t state_2 = state_update[state - L];
-        uint32_t d = bit_count_table[state_2];
-        uint32_t new_state = state_2 << d;
+        const auto state_2 = state_update[state - L];
+        const auto d = bit_count_table[state_2];
+        auto new_state = state_2 << d;
 
         // Read d bits from bitstream
         if (d > 0)
@@ -537,5 +416,3 @@ void ans_decode_t(T* output,
 }
 
 }  // namespace simple_ans
-
-#undef VECTOR_WIDTH
