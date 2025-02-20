@@ -57,7 +57,7 @@ target_link_libraries(_simple_ans PRIVATE emhash)
 if(MSVC)
     target_compile_options(_simple_ans PRIVATE /W4)
 else()
-    target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
 endif()
 
 if(ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
