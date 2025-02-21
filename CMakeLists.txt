@@ -18,8 +18,8 @@ find_package(pybind11 REQUIRED)
 include(FetchContent)
 FetchContent_Declare(
   emhash
-  GIT_REPOSITORY https://github.com/ktprime/emhash.git
-  GIT_TAG bc4f9e76c26f9896ba99dfd94ab525922c9f16ae
+  GIT_REPOSITORY https://github.com/DiamonDinoia/emhash.git
+  GIT_TAG master
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(emhash)
 
