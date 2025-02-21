@@ -17,14 +17,18 @@ find_package(pybind11 REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
-  unordered_dense
-  GIT_REPOSITORY https://github.com/martinus/unordered_dense.git
-  GIT_TAG v4.5.0
+  emhash
+  GIT_REPOSITORY https://github.com/ktprime/emhash.git
+  GIT_TAG bc4f9e7
   GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(unordered_dense)
+FetchContent_MakeAvailable(emhash)
+
+add_library(emhash INTERFACE)
+target_include_directories(emhash INTERFACE ${emhash_SOURCE_DIR})
+target_compile_features(emhash INTERFACE cxx_std_17)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -47,13 +51,13 @@ target_include_directories(_simple_ans
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/simple_ans/cpp
 )
-target_link_libraries(_simple_ans PRIVATE unordered_dense)
+target_link_libraries(_simple_ans PRIVATE emhash)
 
 # Set compiler flags
 if(MSVC)
     target_compile_options(_simple_ans PRIVATE /W4)
 else()
-    target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
 endif()
 
 if(ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
