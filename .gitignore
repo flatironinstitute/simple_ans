@@ -1,0 +1,41 @@
+benchmark_output
+_deps
+
+# Python specific ignores
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# C++ extension builds
+*.o
+*.so
+
+# CMake specific ignores
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeInit.txt
+*.ninja
+.ninja_*
+install_manifest.txt
+.skbuild-info.json
+
+# IDE specific ignores
+.idea/
