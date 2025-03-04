@@ -1,0 +1,56 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        include:
+          # Test on M1 Mac (Apple Silicon)
+          - os: macos-14 # GitHub's macOS 14 runners use Apple Silicon (M1/M2)
+            python-version: "3.10"
+
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install "scikit-build-core>=0.5.0" "pybind11>=2.11.1" ninja pytest
+        
+    - name: Print architecture info
+      run: |
+        uname -a
+        python -c "import platform; print('Python architecture:', platform.architecture(), platform.machine())"
+    
+    # On MacOS ARM64, we set specific environment variables
+    - name: Install package
+      env:
+        ARCHFLAGS: ${{ matrix.os == 'macos-14' && '-arch arm64' || '' }}
+        MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-14' && '11.0' || '' }}
+      run: |
+        # Install the package with the test extra
+        python -m pip install ".[test]"
+        
+    - name: Verify installation
+      run: |
+        python -c "import simple_ans; print('Simple ANS version:', simple_ans.__version__)"
+        
+    - name: Run tests
+      run: |
+        pytest tests/
