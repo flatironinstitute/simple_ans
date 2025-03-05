@@ -22,22 +22,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-        
+
     - name: Install build dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install "scikit-build-core>=0.5.0" "pybind11>=2.11.1" ninja build pytest
-        
+
     - name: Print architecture info
       run: |
         uname -a
         python -c "import platform; print('Python architecture:', platform.architecture(), platform.machine())"
-    
+
     # On MacOS ARM64, we set specific environment variables
     - name: Build and install package
       env:
@@ -46,11 +46,11 @@ jobs:
       run: |
         # Install the package in development mode with test dependencies
         python -m pip install -e .[test]
-        
+
     - name: Verify installation
       run: |
         python -c "import simple_ans; print('Simple ANS version:', simple_ans.__version__)"
-        
+
     - name: Run tests
       run: |
         pytest tests/
