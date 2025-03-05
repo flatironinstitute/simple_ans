@@ -49,7 +49,7 @@ jobs:
         
         # Install the built wheel with test dependencies
         ls -la dist/
-        pip install dist/*.whl[test]
+        pip install dist/*.whl pytest
         
     - name: Verify installation
       run: |
