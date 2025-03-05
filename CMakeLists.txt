@@ -5,24 +5,18 @@ project(simple_ans LANGUAGES CXX)
 if(APPLE)
   execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
   if(ARCH STREQUAL "arm64")
-    set(ARCH_FLAGS "-arch arm64" CACHE STRING "Architecture flags for the compiler")
-    # Explicitly set platform flags for Apple Silicon
-    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for macOS" FORCE)
-    set(IS_ARM_MAC TRUE)
+    # Apple Silicon (M1/M2) configuration
+    set(ARCH_FLAGS -arch arm64)
   else()
-    set(ARCH_FLAGS "-march=native" CACHE STRING "Architecture flags for the compiler")
-    set(IS_ARM_MAC FALSE)
+    # Intel Mac configuration
+    set(ARCH_FLAGS "-march=native")
   endif()
 else()
-  set(ARCH_FLAGS "-march=native" CACHE STRING "Architecture flags for the compiler")
-  set(IS_ARM_MAC FALSE)
+  # Non-Mac configuration (Linux, Windows)
+  set(ARCH_FLAGS "-march=native")
 endif()
 
-# Set optimization flags
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 ${ARCH_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS}")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARCH_FLAGS}")
-
+# Link-time optimization setup
 include(CheckIPOSupported)
 check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
 if (ipo_supported)
@@ -70,33 +64,16 @@ set(HEADERS
 # Create Python module
 pybind11_add_module(_simple_ans ${SOURCES} ${HEADERS})
 
-# Set target-specific properties for Apple Silicon
-if(IS_ARM_MAC)
-  set_target_properties(_simple_ans PROPERTIES
-    COMPILE_FLAGS "-arch arm64"
-    LINK_FLAGS "-arch arm64")
-endif()
-
-# Set include directories
-target_include_directories(_simple_ans
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/simple_ans/cpp
-)
+# Configure include directories
+target_include_directories(_simple_ans PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/simple_ans/cpp)
 target_link_libraries(_simple_ans PRIVATE emhash)
 
-# Set compiler flags
+# Set compiler-specific options
 if(MSVC)
-    target_compile_options(_simple_ans PRIVATE /W4)
+  target_compile_options(_simple_ans PRIVATE /W4)
 else()
-    # Apply standard warning flags
-    target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
-    
-    # Apply architecture-specific flags
-    if(IS_ARM_MAC)
-        target_compile_options(_simple_ans PRIVATE -arch arm64)
-    else()
-        target_compile_options(_simple_ans PRIVATE -march=native)
-    endif()
+  # Standard warning flags
+  target_compile_options(_simple_ans PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas ${ARCH_FLAGS})
 endif()
 
 if(ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
