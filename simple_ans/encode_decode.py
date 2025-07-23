@@ -116,7 +116,7 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
 
     return EncodedSignal(
         state=encoded.state,
-        words=encoded.words,
+        words=np.array(encoded.words, dtype=np.uint32),
         symbol_counts=symbol_counts,  # Already numpy array from above
         symbol_values=symbol_values,  # Already numpy array from above
         signal_length=signal_length
@@ -135,8 +135,7 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
     if encoded.symbol_values.dtype == np.int32:
         return _ans_decode_int32(
             encoded.state,
-            encoded.bitstream,
-            encoded.num_bits,
+            encoded.words,
             encoded.symbol_counts,
             encoded.symbol_values,
             encoded.signal_length,
@@ -144,8 +143,7 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
     elif encoded.symbol_values.dtype == np.int16:
         return _ans_decode_int16(
             encoded.state,
-            encoded.bitstream,
-            encoded.num_bits,
+            encoded.words,
             encoded.symbol_counts,
             encoded.symbol_values,
             encoded.signal_length,
@@ -153,8 +151,7 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
     elif encoded.symbol_values.dtype == np.uint32:
         return _ans_decode_uint32(
             encoded.state,
-            encoded.bitstream,
-            encoded.num_bits,
+            encoded.words,
             encoded.symbol_counts,
             encoded.symbol_values,
             encoded.signal_length,
@@ -162,8 +159,7 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
     elif encoded.symbol_values.dtype == np.uint16:
         return _ans_decode_uint16(
             encoded.state,
-            encoded.bitstream,
-            encoded.num_bits,
+            encoded.words,
             encoded.symbol_counts,
             encoded.symbol_values,
             encoded.signal_length,
@@ -171,8 +167,7 @@ def ans_decode(encoded: EncodedSignal) -> np.ndarray:
     else:  # dtype == np.uint8
         return _ans_decode_uint8(
             encoded.state,
-            encoded.bitstream,
-            encoded.num_bits,
+            encoded.words,
             encoded.symbol_counts,
             encoded.symbol_values,
             encoded.signal_length,

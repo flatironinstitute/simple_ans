@@ -57,7 +57,7 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
 
     m.def(
         ans_decode_name.c_str(),
-        [](uint32_t state,
+        [](uint64_t state,
            py::array_t<uint32_t> words,
            py::array_t<uint32_t> symbol_counts,
            py::array_t<T> symbol_values,
