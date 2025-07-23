@@ -237,19 +237,19 @@ if __name__ == '__main__':
 
     # test 2 - Large uniform
     num_symbols = 10
-    signal_length = 10000
+    signal_length = 100_000
     signal = np.random.randint(num_symbols, size=signal_length).astype(np.int32)
     signals.append(signal)
 
     # test 3 - Skewed - mostly zeros, and some other values
-    signal_length = 10000
+    signal_length = 100_000
     proportions = [1000, 1, 2, 5, 10]
     probs = np.array(proportions) / np.sum(proportions)
     signal = np.random.choice(len(proportions), signal_length, p=probs).astype(np.int16)
     signals.append(signal)
 
     # test 4 - Negative numbers
-    signal = np.random.randint(-10, 10, size=1000).astype(np.int32)
+    signal = np.random.randint(-10, 10, size=100_000).astype(np.int32)
     signals.append(signal)
 
     # test 5 - Binary signal

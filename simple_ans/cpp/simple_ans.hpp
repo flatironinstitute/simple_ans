@@ -216,6 +216,7 @@ EncodedData ans_encode_t(const T* signal,
         const uint64_t prefix = state_normalized / F_s;
         const uint64_t quantile = C_s + remainder;
         state = (prefix << PRECISION_BITS) | quantile;
+
         // print the state
         // printf("State after encoding symbol %zu (%d): %llu\n", i, signal[i], state);
     }
@@ -236,7 +237,8 @@ void ans_decode_t(T* output,
                   const T* symbol_values,
                   size_t num_symbols)
 {
-    size_t word_idx = num_words - 1;
+    // very important that this is signed, because it becomes -1
+    int32_t word_idx = num_words - 1;
     // Calculate index size and verify it's a power of 2
     uint32_t index_size = 0;
     for (size_t i = 0; i < num_symbols; ++i)

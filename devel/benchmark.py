@@ -50,7 +50,13 @@ elapsed_decode = (time.time() - timer) / num_runs
 
 signal_decoded = ans_decode(encoded)
 assert len(signal_decoded) == len(signal)
-assert np.all(signal_decoded == signal)
+if not np.all(signal_decoded == signal):
+    print("Decoded signal does not match original signal")
+    print(f"Original signal: {signal[:10]}")
+    print(f"Decoded signal: {signal_decoded[:10]}")
+    print(f'Size of signal: {len(signal)}')
+    print(f'Encoded state: {encoded.state}')
+    raise ValueError("Decoded signal does not match original signal")
 print("Decoded signal matches original signal")
 
 # 64 bits per bitstream word, 32 bits for state, 32 bits per symbol count, 32 bits per symbol value, 32 bits for num_bits, 32 bits for signal_length
