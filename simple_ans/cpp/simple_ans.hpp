@@ -15,7 +15,7 @@ struct EncodedData
 {
     uint64_t state;
     std::vector<uint32_t> words;
-    size_t num_bits;  // Actual number of bits used (may be less than bitstream.size() * 64)
+    size_t num_words;  // Number of words used
 };
 
 // Helper function to verify if a number is a power of 2
@@ -223,7 +223,7 @@ EncodedData ans_encode_t(const T* signal,
     // Truncate words to actual size used
     words.resize(word_idx);
 
-    return {state, std::move(words), num_bits};
+    return {state, std::move(words), word_idx};
 }
 
 template <typename T>
@@ -272,9 +272,6 @@ void ans_decode_t(T* output,
         }
     }
 
-    // Prepare bit reading
-    int64_t bit_pos = num_bits - 1;
-
     // Decode symbols in reverse order
     for (size_t i = 0; i < n; ++i)
     {
@@ -285,7 +282,7 @@ void ans_decode_t(T* output,
         const uint32_t C_s = C[s_ind];
         uint64_t previous_state = prefix * F_s + quantile - C_s;
 
-        if (previous_state < THRESHOLD && bit_pos >= 0)
+        if (previous_state < THRESHOLD && word_idx >= 0)
         {
             uint32_t emit_word = words[word_idx];
             word_idx--;

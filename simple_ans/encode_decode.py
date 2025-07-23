@@ -116,8 +116,7 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
 
     return EncodedSignal(
         state=encoded.state,
-        bitstream=encoded.bitstream,
-        num_bits=encoded.num_bits,
+        words=encoded.words,
         symbol_counts=symbol_counts,  # Already numpy array from above
         symbol_values=symbol_values,  # Already numpy array from above
         signal_length=signal_length

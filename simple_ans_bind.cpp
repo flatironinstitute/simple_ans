@@ -58,12 +58,12 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
     m.def(
         ans_decode_name.c_str(),
         [](uint32_t state,
-           const py::array_t<uint32_t& words,
-           size_t num_words,
+           py::array_t<uint32_t> words,
            py::array_t<uint32_t> symbol_counts,
            py::array_t<T> symbol_values,
            size_t n)
         {
+            py::buffer_info words_buf = words.request();
             py::buffer_info counts_buf = symbol_counts.request();
             py::buffer_info values_buf = symbol_values.request();
 
@@ -83,8 +83,8 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
             simple_ans::ans_decode_t(static_cast<T*>(result_buf.ptr),
                                      n,
                                      state,
-                                     static_cast<const uint64_t*>(words.ptr),
-                                     static_cast<size_t>(num_words),
+                                     static_cast<const uint32_t*>(words_buf.ptr),
+                                     static_cast<size_t>(words_buf.size),
                                      static_cast<const uint32_t*>(counts_buf.ptr),
                                      static_cast<const T*>(values_buf.ptr),
                                      counts_buf.shape[0]);
@@ -94,7 +94,6 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
         "Decode ANS-encoded signal",
         py::arg("state"),
         py::arg("words"),
-        py::arg("num_words"),
         py::arg("symbol_counts").noconvert(),
         py::arg("symbol_values").noconvert(),
         py::arg("n"));
@@ -108,7 +107,7 @@ PYBIND11_MODULE(_simple_ans, m)
         .def(py::init<>())
         .def_readwrite("state", &simple_ans::EncodedData::state)
         .def_readwrite("words", &simple_ans::EncodedData::words)
-        .def_readwrite("num_bits", &simple_ans::EncodedData::num_bits);
+        .def_readwrite("num_words", &simple_ans::EncodedData::num_words);
 
     // Bind signed and unsigned integer versions
     bind_ans_functions<int32_t>(m, "int32");

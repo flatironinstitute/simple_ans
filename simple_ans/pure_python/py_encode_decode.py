@@ -263,14 +263,14 @@ if __name__ == '__main__':
     for i, signal in enumerate(signals):
         print(f'Test {i + 1}')
         encoded = py_ans_encode(signal)
-        # encoded2 = ans_encode(signal)
-        # assert encoded.state == encoded2.state, f"States do not match for test {i + 1}. {encoded.state} != {encoded2.state}"
-        # words1 = encoded.words
-        # words2 = encoded2.words
-        # assert np.all(words1 == words2), f"Words do not match for test {i + 1}"
+        encoded2 = ans_encode(signal)
+        assert encoded.state == encoded2.state, f"States do not match for test {i + 1}. {encoded.state} != {encoded2.state}"
+        words1 = encoded.words
+        words2 = encoded2.words
+        assert np.all(words1 == words2), f"Words do not match for test {i + 1}"
         decoded = py_ans_decode(encoded)
         assert np.all(signal == decoded), f"Test {i + 1} failed"
-        # decoded2 = py_ans_decode(encoded2)
-        # assert np.all(signal == decoded2), f"Test {i + 1} failed"
+        decoded2 = py_ans_decode(encoded2)
+        assert np.all(signal == decoded2), f"Test {i + 1} failed"
 
     print("All tests passed!")
