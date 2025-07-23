@@ -13,9 +13,8 @@ namespace simple_ans
 
 struct EncodedData
 {
-    uint32_t state;
-    std::vector<uint64_t>
-        bitstream;    // Each uint64_t contains 64 bits, with padding in last word if needed
+    uint64_t state;
+    std::vector<uint32_t> words;
     size_t num_bits;  // Actual number of bits used (may be less than bitstream.size() * 64)
 };
 
@@ -53,6 +52,11 @@ namespace simple_ans
 {
 constexpr int unique_array_threshold = static_cast<int>(std::numeric_limits<uint16_t>::max()) + 1;
 constexpr int lookup_array_threshold = unique_array_threshold;
+
+constexpr int STATE_BITS = 64;
+constexpr int WORD_BITS = 32;
+constexpr uint64_t THRESHOLD = 1ULL << (STATE_BITS - WORD_BITS);
+constexpr uint64_t MASK_WORD = (1ULL << WORD_BITS) - 1;
 
 template <typename T>
 std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* values, size_t n)
@@ -97,36 +101,6 @@ std::tuple<std::vector<T>, std::vector<uint64_t>> unique_with_counts(const T* va
     return {std::move(unique_values), std::move(counts)};
 }
 
-inline void read_bits_from_end_of_bitstream(const uint64_t* bitstream,
-                                            int64_t& source_bit_position,
-                                            uint32_t& dest,
-                                            uint32_t dest_start_bit,
-                                            uint32_t dest_end_bit)
-{
-    uint32_t d = dest_end_bit - dest_start_bit;
-    if ((source_bit_position & 63) >= (d - 1))
-    {
-        // in this case we can grab all the bits we need at once from the current word
-        uint32_t word_idx = source_bit_position >> 6;  // Divide by 64
-        uint32_t bit_idx = source_bit_position & 63;   // Modulo 64
-        // get bits from bit_idx - d + 1 to bit_idx
-        uint32_t bits =
-            static_cast<uint32_t>((bitstream[word_idx] >> (bit_idx - d + 1)) & ((1 << d) - 1));
-        dest |= (bits << dest_start_bit);
-    }
-    else
-    {
-        // this is possibly the slower case, but should be less common
-        for (uint32_t j = 0; j < d; ++j)
-        {
-            uint32_t word_idx = (source_bit_position - j) >> 6;  // Divide by 64
-            uint32_t bit_idx = (source_bit_position - j) & 63;   // Modulo 64
-            dest |= (static_cast<uint32_t>((bitstream[word_idx] >> bit_idx) & 1)
-                     << (d - 1 - j + dest_start_bit));
-        }
-    }
-}
-
 template <typename T>
 EncodedData ans_encode_t(const T* signal,
                          size_t signal_size,
@@ -138,14 +112,20 @@ EncodedData ans_encode_t(const T* signal,
                   "Value range of T must fit in int64_t for table lookup");
 
     // Calculate L and verify it's a power of 2
-    uint32_t L = 0;
+    uint32_t index_size = 0;
     for (size_t i = 0; i < num_symbols; ++i)
     {
-        L += symbol_counts[i];
+        index_size += symbol_counts[i];
     }
-    if (!is_power_of_2(L))
+    if (!is_power_of_2(index_size))
     {
         throw std::invalid_argument("L must be a power of 2");
+    }
+
+    int PRECISION_BITS = 0;
+    while ((1U << PRECISION_BITS) < index_size)
+    {
+        PRECISION_BITS++;
     }
 
     // Pre-compute cumulative sums
@@ -184,12 +164,10 @@ EncodedData ans_encode_t(const T* signal,
         }
     }
 
-    // Initialize state and packed bitstream
-    uint32_t state = L;
-    std::vector<uint64_t> bitstream(
-        (signal_size * 32 + 63) / 64,
-        0);  // Preallocate worst case (todo: is this the correct worst case?)
-    size_t num_bits = 0;
+    // Initialize state and words
+    uint64_t state = 0;
+    std::vector<uint32_t> words(signal_size, 0); // Preallocate worst case (todo: is this the correct worst case?)
+    size_t word_idx = 0;
 
     // Encode each symbol
     for (size_t i = 0; i < signal_size; ++i)
@@ -220,51 +198,60 @@ EncodedData ans_encode_t(const T* signal,
             s_ind = it->second;
         }
 
-        uint32_t state_normalized = state;
-        const uint32_t L_s = symbol_counts[s_ind];
+        uint64_t state_normalized = state;
+        const uint32_t F_s = symbol_counts[s_ind];
+        const uint32_t C_s = C[s_ind];
 
-        // Normalize state
-        // we need state_normalized to be in the range [L_s, 2*L_s)
-        while (state_normalized >= 2 * L_s)
+        // Check if we need to normalize
+        if ((state_normalized >> (STATE_BITS - PRECISION_BITS)) >= F_s)
         {
-            // Add bit to packed format
-            size_t word_idx = num_bits >> 6;  // Divide by 64
-            size_t bit_idx = num_bits & 63;   // Modulo 64
-            bitstream[word_idx] |= static_cast<uint64_t>(state_normalized & 1) << bit_idx;
-            num_bits++;
-            state_normalized >>= 1;
+            const uint32_t emit_word = state & MASK_WORD;
+            state_normalized = state_normalized >> WORD_BITS;
+            words[word_idx] = emit_word;
+            word_idx ++;
         }
 
         // Update state
-        state = L + C[s_ind] + state_normalized - L_s;
+        const uint64_t remainder = state_normalized % F_s;
+        const uint64_t prefix = state_normalized / F_s;
+        const uint64_t quantile = C_s + remainder;
+        state = (prefix << PRECISION_BITS) | quantile;
+        // print the state
+        // printf("State after encoding symbol %zu (%d): %llu\n", i, signal[i], state);
     }
 
-    // Truncate bitstream to actual size used
-    size_t final_words = (num_bits + 63) / 64;
-    bitstream.resize(final_words);
+    // Truncate words to actual size used
+    words.resize(word_idx);
 
-    return {state, std::move(bitstream), num_bits};
+    return {state, std::move(words), num_bits};
 }
 
 template <typename T>
 void ans_decode_t(T* output,
                   size_t n,
                   uint32_t state,
-                  const uint64_t* bitstream,
-                  size_t num_bits,
+                  const uint32_t* words,
+                  size_t num_words,
                   const uint32_t* symbol_counts,
                   const T* symbol_values,
                   size_t num_symbols)
 {
-    // Calculate L and verify it's a power of 2
-    uint32_t L = 0;
+    size_t word_idx = num_words - 1;
+    // Calculate index size and verify it's a power of 2
+    uint32_t index_size = 0;
     for (size_t i = 0; i < num_symbols; ++i)
     {
-        L += symbol_counts[i];
+        index_size += symbol_counts[i];
     }
-    if (!is_power_of_2(L))
+    if (!is_power_of_2(index_size))
     {
         throw std::invalid_argument("L must be a power of 2");
+    }
+
+    int PRECISION_BITS = 0;
+    while ((1U << PRECISION_BITS) < index_size)
+    {
+        PRECISION_BITS++;
     }
 
     // Pre-compute cumulative sums
@@ -276,7 +263,7 @@ void ans_decode_t(T* output,
     }
 
     // Create symbol lookup table
-    std::vector<uint32_t> symbol_lookup(L);
+    std::vector<uint32_t> symbol_lookup(index_size);
     for (size_t s = 0; s < num_symbols; ++s)
     {
         for (uint32_t j = 0; j < symbol_counts[s]; ++j)
@@ -285,52 +272,28 @@ void ans_decode_t(T* output,
         }
     }
 
-    // Create state update table
-    std::vector<uint32_t> state_update(L);
-    for (uint32_t i = 0; i < L; ++i)
-    {
-        uint32_t s = symbol_lookup[i];
-        uint32_t f_s = symbol_counts[s];
-        state_update[i] = f_s + i - C[s];
-    }
-
-    // Create bit count table
-    uint32_t max_f_s = 0;
-    for (size_t s = 0; s < num_symbols; ++s)
-    {
-        max_f_s = std::max(max_f_s, symbol_counts[s]);
-    }
-    std::vector<uint32_t> bit_count_table(2 * max_f_s);
-    for (uint32_t i = 1; i < 2 * max_f_s; ++i)
-    {
-        uint32_t d = 0;
-        while ((i << d) < L)
-        {
-            d++;
-        }
-        bit_count_table[i] = d;
-    }
-
     // Prepare bit reading
     int64_t bit_pos = num_bits - 1;
 
     // Decode symbols in reverse order
     for (size_t i = 0; i < n; ++i)
     {
-        uint32_t s_ind = symbol_lookup[state - L];
-        output[n - 1 - i] = symbol_values[s_ind];
+        const uint64_t prefix = state >> PRECISION_BITS;
+        const uint64_t quantile = state & ((1U << PRECISION_BITS) - 1);
+        uint32_t s_ind = symbol_lookup[quantile];
+        const uint32_t F_s = symbol_counts[s_ind];
+        const uint32_t C_s = C[s_ind];
+        uint64_t previous_state = prefix * F_s + quantile - C_s;
 
-        uint32_t state_2 = state_update[state - L];
-        uint32_t d = bit_count_table[state_2];
-        uint32_t new_state = state_2 << d;
-
-        // Read d bits from bitstream
-        if (d > 0)
+        if (previous_state < THRESHOLD && bit_pos >= 0)
         {
-            read_bits_from_end_of_bitstream(bitstream, bit_pos, new_state, 0, d);
+            uint32_t emit_word = words[word_idx];
+            word_idx--;
+            previous_state = (previous_state << WORD_BITS) | emit_word;
         }
-        bit_pos -= d;
-        state = new_state;
+
+        state = previous_state;
+        output[n - 1 - i] = symbol_values[s_ind];
     }
 }
 

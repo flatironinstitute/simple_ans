@@ -58,8 +58,8 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
     m.def(
         ans_decode_name.c_str(),
         [](uint32_t state,
-           const py::bytes& bitstream,
-           size_t num_bits,
+           const py::array_t<uint32_t& words,
+           size_t num_words,
            py::array_t<uint32_t> symbol_counts,
            py::array_t<T> symbol_values,
            size_t n)
@@ -80,15 +80,11 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
             auto result = py::array_t<T>(n);
             py::buffer_info result_buf = result.request();
 
-            // Convert bytes to uint64_t array
-            std::string str = bitstream;
-            const uint64_t* bitstream_ptr = reinterpret_cast<const uint64_t*>(str.data());
-
             simple_ans::ans_decode_t(static_cast<T*>(result_buf.ptr),
                                      n,
                                      state,
-                                     bitstream_ptr,
-                                     num_bits,
+                                     static_cast<const uint64_t*>(words.ptr),
+                                     static_cast<size_t>(num_words),
                                      static_cast<const uint32_t*>(counts_buf.ptr),
                                      static_cast<const T*>(values_buf.ptr),
                                      counts_buf.shape[0]);
@@ -97,8 +93,8 @@ void bind_ans_functions(py::module& m, const char* type_suffix)
         },
         "Decode ANS-encoded signal",
         py::arg("state"),
-        py::arg("bitstream"),
-        py::arg("num_bits"),
+        py::arg("words"),
+        py::arg("num_words"),
         py::arg("symbol_counts").noconvert(),
         py::arg("symbol_values").noconvert(),
         py::arg("n"));
@@ -111,21 +107,7 @@ PYBIND11_MODULE(_simple_ans, m)
     py::class_<simple_ans::EncodedData>(m, "EncodedData")
         .def(py::init<>())
         .def_readwrite("state", &simple_ans::EncodedData::state)
-        .def_property(
-            "bitstream",
-            [](const simple_ans::EncodedData& data)
-            {
-                // Convert vector<uint64_t> to bytes directly
-                return py::bytes(reinterpret_cast<const char*>(data.bitstream.data()),
-                                 data.bitstream.size() * sizeof(uint64_t));
-            },
-            [](simple_ans::EncodedData& data, const py::bytes& bytes)
-            {
-                // Convert bytes back to vector<uint64_t>
-                std::string str = bytes;
-                data.bitstream.resize(str.size() / sizeof(uint64_t));
-                std::memcpy(data.bitstream.data(), str.data(), str.size());
-            })
+        .def_readwrite("words", &simple_ans::EncodedData::words)
         .def_readwrite("num_bits", &simple_ans::EncodedData::num_bits);
 
     // Bind signed and unsigned integer versions
