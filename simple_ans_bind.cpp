@@ -106,8 +106,23 @@ PYBIND11_MODULE(_simple_ans, m)
     py::class_<simple_ans::EncodedData>(m, "EncodedData")
         .def(py::init<>())
         .def_readwrite("state", &simple_ans::EncodedData::state)
-        .def_readwrite("words", &simple_ans::EncodedData::words)
-        .def_readwrite("num_words", &simple_ans::EncodedData::num_words);
+        .def_property("words",
+            [](const simple_ans::EncodedData& self) {
+                // Return words as a numpy array directly, avoiding list conversion
+                return py::array_t<uint32_t>(
+                    self.words.size(),                    // size
+                    self.words.data(),                    // data pointer
+                    py::cast(self, py::return_value_policy::reference_internal)  // parent object to keep alive
+                );
+            },
+            [](simple_ans::EncodedData& self, py::array_t<uint32_t> arr) {
+                // Setter: copy from numpy array to vector
+                py::buffer_info buf = arr.request();
+                self.words.assign(
+                    static_cast<const uint32_t*>(buf.ptr),
+                    static_cast<const uint32_t*>(buf.ptr) + buf.size
+                );
+            });
 
     // Bind signed and unsigned integer versions
     bind_ans_functions<int32_t>(m, "int32");

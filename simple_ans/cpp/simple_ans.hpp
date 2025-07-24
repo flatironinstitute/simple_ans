@@ -1,12 +1,16 @@
 #pragma once
 
 #include <cassert>
+#include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <stdexcept>
 #include <vector>
 
 #include <ankerl/unordered_dense.h>
+
+#include "libdivide.h"
 
 namespace simple_ans
 {
@@ -15,7 +19,6 @@ struct EncodedData
 {
     uint64_t state;
     std::vector<uint32_t> words;
-    size_t num_words;  // Number of words used
 };
 
 // Helper function to verify if a number is a power of 2
@@ -111,6 +114,11 @@ EncodedData ans_encode_t(const T* signal,
     static_assert(sizeof(T) < sizeof(int64_t),
                   "Value range of T must fit in int64_t for table lookup");
 
+    auto start_total = std::chrono::high_resolution_clock::now();
+    printf("[ENCODE] Starting encode for signal_size=%zu, num_symbols=%zu\n", signal_size, num_symbols);
+
+    auto start_setup = std::chrono::high_resolution_clock::now();
+
     // Calculate L and verify it's a power of 2
     uint32_t index_size = 0;
     for (size_t i = 0; i < num_symbols; ++i)
@@ -134,6 +142,13 @@ EncodedData ans_encode_t(const T* signal,
     for (size_t i = 1; i < num_symbols; ++i)
     {
         C[i] = C[i - 1] + symbol_counts[i - 1];
+    }
+
+    // Precompute libdivide dividers for each symbol count
+    std::vector<libdivide::divider<uint64_t>> fast_dividers(num_symbols);
+    for (size_t i = 0; i < num_symbols; ++i)
+    {
+        fast_dividers[i] = libdivide::divider<uint64_t>(symbol_counts[i]);
     }
 
     // Create symbol index lookup
@@ -166,13 +181,19 @@ EncodedData ans_encode_t(const T* signal,
 
     // Initialize state and words
     uint64_t state = 0;
-    std::vector<uint32_t> words(signal_size, 0); // Preallocate worst case (todo: is this the correct worst case?)
-    size_t word_idx = 0;
+    std::vector<uint32_t> words; // Use dynamic allocation instead of preallocating
+    words.reserve(signal_size / 8); // Reserve a reasonable estimate to avoid frequent reallocations
+
+    auto end_setup = std::chrono::high_resolution_clock::now();
+    auto setup_time = std::chrono::duration_cast<std::chrono::microseconds>(end_setup - start_setup).count();
+    printf("[ENCODE] Total setup time: %ld μs\n", setup_time);
 
     // Encode each symbol
+    auto start_loop = std::chrono::high_resolution_clock::now();
+
     for (size_t i = 0; i < signal_size; ++i)
     {
-        // Symbol index
+        // Symbol index lookup
         size_t s_ind;
         if (use_lookup_array)
         {
@@ -198,33 +219,37 @@ EncodedData ans_encode_t(const T* signal,
             s_ind = it->second;
         }
 
-        uint64_t state_normalized = state;
+        // Cache frequently accessed symbol data to avoid repeated array lookups
         const uint32_t F_s = symbol_counts[s_ind];
         const uint32_t C_s = C[s_ind];
+        const auto& divider = fast_dividers[s_ind];
 
         // Check if we need to normalize
-        if ((state_normalized >> (STATE_BITS - PRECISION_BITS)) >= F_s)
+        if ((state >> (STATE_BITS - PRECISION_BITS)) >= F_s)
         {
-            const uint32_t emit_word = state & MASK_WORD;
-            state_normalized = state_normalized >> WORD_BITS;
-            words[word_idx] = emit_word;
-            word_idx ++;
+            words.push_back(state & MASK_WORD);
+            state >>= WORD_BITS;
         }
 
-        // Update state
-        const uint64_t remainder = state_normalized % F_s;
-        const uint64_t prefix = state_normalized / F_s;
-        const uint64_t quantile = C_s + remainder;
-        state = (prefix << PRECISION_BITS) | quantile;
+        // Update state using libdivide for faster division
+        const uint64_t prefix = state / divider;
+        const uint64_t remainder = state - prefix * F_s;
+        state = (prefix << PRECISION_BITS) | (C_s + remainder);
 
         // print the state
         // printf("State after encoding symbol %zu (%d): %llu\n", i, signal[i], state);
     }
 
-    // Truncate words to actual size used
-    words.resize(word_idx);
+    auto end_loop = std::chrono::high_resolution_clock::now();
+    auto loop_time = std::chrono::duration_cast<std::chrono::microseconds>(end_loop - start_loop).count();
+    printf("[ENCODE] Main encoding loop: %ld μs\n", loop_time);
 
-    return {state, std::move(words), word_idx};
+    auto end_total = std::chrono::high_resolution_clock::now();
+    auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
+    printf("[ENCODE] Total encode time: %ld μs\n", total_time);
+    printf("[ENCODE] Encoded %zu symbols into %zu words\n", signal_size, words.size());
+
+    return {state, std::move(words)};
 }
 
 template <typename T>
@@ -237,6 +262,11 @@ void ans_decode_t(T* output,
                   const T* symbol_values,
                   size_t num_symbols)
 {
+    auto start_total = std::chrono::high_resolution_clock::now();
+    printf("[DECODE] Starting decode for n=%zu, num_words=%zu, num_symbols=%zu\n", n, num_words, num_symbols);
+
+    auto start_setup = std::chrono::high_resolution_clock::now();
+
     // very important that this is signed, because it becomes -1
     int32_t word_idx = num_words - 1;
     // Calculate index size and verify it's a power of 2
@@ -274,26 +304,45 @@ void ans_decode_t(T* output,
         }
     }
 
+    auto end_setup = std::chrono::high_resolution_clock::now();
+    auto setup_time = std::chrono::duration_cast<std::chrono::microseconds>(end_setup - start_setup).count();
+    printf("[DECODE] Total setup time: %ld μs\n", setup_time);
+
     // Decode symbols in reverse order
+    auto start_loop = std::chrono::high_resolution_clock::now();
+
     for (size_t i = 0; i < n; ++i)
     {
         const uint64_t prefix = state >> PRECISION_BITS;
         const uint64_t quantile = state & ((1U << PRECISION_BITS) - 1);
-        uint32_t s_ind = symbol_lookup[quantile];
+        const uint32_t s_ind = symbol_lookup[quantile];
+
+        // Cache frequently accessed symbol data to avoid repeated array lookups
         const uint32_t F_s = symbol_counts[s_ind];
         const uint32_t C_s = C[s_ind];
+        const T symbol_value = symbol_values[s_ind];
+
         uint64_t previous_state = prefix * F_s + quantile - C_s;
 
         if (previous_state < THRESHOLD && word_idx >= 0)
         {
-            uint32_t emit_word = words[word_idx];
+            const uint32_t emit_word = words[word_idx];
             word_idx--;
             previous_state = (previous_state << WORD_BITS) | emit_word;
         }
 
         state = previous_state;
-        output[n - 1 - i] = symbol_values[s_ind];
+        output[n - 1 - i] = symbol_value;
     }
+
+    auto end_loop = std::chrono::high_resolution_clock::now();
+    auto loop_time = std::chrono::duration_cast<std::chrono::microseconds>(end_loop - start_loop).count();
+    printf("[DECODE] Main decoding loop: %ld μs\n", loop_time);
+
+    auto end_total = std::chrono::high_resolution_clock::now();
+    auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
+    printf("[DECODE] Total decode time: %ld μs\n", total_time);
+    printf("[DECODE] Decoded %zu symbols from %zu words\n", n, num_words);
 }
 
 }  // namespace simple_ans
