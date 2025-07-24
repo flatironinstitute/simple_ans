@@ -20,9 +20,8 @@ def test_encode_decode():
             encoded, EncodedSignal
         ), "Result should be EncodedSignal object"
         assert isinstance(
-            encoded.bitstream, bytes
-        ), "Encoded bitstream should be bytes"
-        assert len(encoded.bitstream) % 8 == 0, "Bitstream length should be multiple of 8"
+            encoded.words, np.ndarray
+        ), "Encoded words should be ndarray"
 
         # Decode
         decoded = ans_decode(encoded)
