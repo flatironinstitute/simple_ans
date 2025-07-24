@@ -6,8 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <vector>
-
-#include <ankerl/unordered_dense.h>
+#include <unordered_map>
 
 #include "libdivide.h"
 
@@ -146,7 +145,7 @@ EncodedData ans_encode_t(const T* signal,
     }
 
     // Create symbol index lookup
-    ankerl::unordered_dense::map<T, size_t> symbol_index_lookup;
+    std::unordered_map<T, size_t> symbol_index_lookup;
     int64_t min_symbol = symbol_values[0];
     int64_t max_symbol = symbol_values[0];
     for (size_t i = 0; i < num_symbols; ++i)
