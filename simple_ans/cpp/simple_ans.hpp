@@ -191,6 +191,8 @@ EncodedData ans_encode_t(const T* signal,
     // Encode each symbol
     auto start_loop = std::chrono::high_resolution_clock::now();
 
+    auto SHIFT = STATE_BITS - PRECISION_BITS;
+
     for (size_t i = 0; i < signal_size; ++i)
     {
         // Symbol index lookup
@@ -225,7 +227,7 @@ EncodedData ans_encode_t(const T* signal,
         const auto& divider = fast_dividers[s_ind];
 
         // Check if we need to normalize
-        if ((state >> (STATE_BITS - PRECISION_BITS)) >= F_s)
+        if ((state >> SHIFT) >= F_s)
         {
             words.push_back(state & MASK_WORD);
             state >>= WORD_BITS;
