@@ -86,7 +86,6 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
                 entropy_target = -np.sum(probs * np.log2(probs))
                 entropy_0 = -np.sum(probs * np.log2(probs_0))
                 if entropy_0 <= entropy_target / 0.98 or L >= 2**20:
-                    print(f'Using precision {precision} with index size {L} (entropy ratio: {(entropy_0 / entropy_target if entropy_target else 1):.2f})')
                     index_size = L
                     break
             precision += 1
@@ -115,7 +114,7 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
         encoded = _ans_encode_uint8(signal, symbol_counts, symbol_values)
 
     ret = EncodedSignal(
-        state=encoded.state,
+        state=np.uint64(encoded.state),
         words=encoded.words,
         symbol_counts=symbol_counts,  # Already numpy array from above
         symbol_values=symbol_values,  # Already numpy array from above

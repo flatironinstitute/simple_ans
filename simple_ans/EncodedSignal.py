@@ -14,7 +14,7 @@ class EncodedSignal:
         signal_length (int): Length of the original signal in number of elements
     """
 
-    state: int
+    state: np.uint64
     words: np.ndarray
     symbol_counts: np.ndarray  # uint32 array
     symbol_values: np.ndarray  # int32, uint32, int16, uint16, or uint8 array
@@ -44,8 +44,8 @@ class EncodedSignal:
             raise TypeError("words must be a numpy ndarray of dtype uint32")
 
         # Validate types and sizes
-        if not isinstance(self.state, int):
-            raise TypeError("state must be an integer")
+        if type(self.state) != np.uint64:
+            raise TypeError("state must be a numpy uint64")
         if not isinstance(self.signal_length, int):
             raise TypeError("signal_length must be an integer")
 
