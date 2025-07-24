@@ -66,8 +66,6 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
     Returns:
         An EncodedSignal object containing the encoded data.
     """
-    import time
-    timer = time.time()
     if signal.dtype not in [np.int32, np.int16, np.uint32, np.uint16, np.uint8]:
         raise TypeError("Input signal must be int32, int16, uint32, uint16, or uint8")
     assert signal.ndim == 1, "Input signal must be a 1D array"
@@ -104,10 +102,6 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
 
     assert np.sum(symbol_counts) == index_size
 
-    elapsed0 = time.time() - timer
-    print(f'The preprocessing step took {elapsed0:.2f} seconds')
-
-    timer = time.time()
     dtype = signal.dtype
     if dtype == np.int32:
         encoded = _ans_encode_int32(signal, symbol_counts, symbol_values)
@@ -119,25 +113,14 @@ def ans_encode(signal: np.ndarray, *, precision: Union[int, None] = None, verbos
         encoded = _ans_encode_uint16(signal, symbol_counts, symbol_values)
     else:  # dtype == np.uint8
         encoded = _ans_encode_uint8(signal, symbol_counts, symbol_values)
-    elapsed0 = time.time() - timer
-    print(f'The encoding step took {elapsed0:.2f} seconds')
 
-    timer = time.time()
-    print(type(encoded.words))
-    # encoded.words is now already a numpy array, no conversion needed
-    words = encoded.words
-    elapsed0 = time.time() - timer
-    print(f'The words assignment took {elapsed0:.2f} seconds')
-    timer = time.time()
     ret = EncodedSignal(
         state=encoded.state,
-        words=words,
+        words=encoded.words,
         symbol_counts=symbol_counts,  # Already numpy array from above
         symbol_values=symbol_values,  # Already numpy array from above
         signal_length=signal_length
     )
-    elapsed0 = time.time() - timer
-    print(f'The postprocessing step took {elapsed0:.2f} seconds')
     return ret
 
 

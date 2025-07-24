@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cassert>
-#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
@@ -114,11 +113,6 @@ EncodedData ans_encode_t(const T* signal,
     static_assert(sizeof(T) < sizeof(int64_t),
                   "Value range of T must fit in int64_t for table lookup");
 
-    auto start_total = std::chrono::high_resolution_clock::now();
-    printf("[ENCODE] Starting encode for signal_size=%zu, num_symbols=%zu\n", signal_size, num_symbols);
-
-    auto start_setup = std::chrono::high_resolution_clock::now();
-
     // Calculate L and verify it's a power of 2
     uint32_t index_size = 0;
     for (size_t i = 0; i < num_symbols; ++i)
@@ -184,13 +178,7 @@ EncodedData ans_encode_t(const T* signal,
     std::vector<uint32_t> words; // Use dynamic allocation instead of preallocating
     words.reserve(signal_size / 8); // Reserve a reasonable estimate to avoid frequent reallocations
 
-    auto end_setup = std::chrono::high_resolution_clock::now();
-    auto setup_time = std::chrono::duration_cast<std::chrono::microseconds>(end_setup - start_setup).count();
-    printf("[ENCODE] Total setup time: %ld μs\n", setup_time);
-
     // Encode each symbol
-    auto start_loop = std::chrono::high_resolution_clock::now();
-
     auto SHIFT = STATE_BITS - PRECISION_BITS;
 
     for (size_t i = 0; i < signal_size; ++i)
@@ -237,19 +225,7 @@ EncodedData ans_encode_t(const T* signal,
         const uint64_t prefix = state / divider;
         const uint64_t remainder = state - prefix * F_s;
         state = (prefix << PRECISION_BITS) | (C_s + remainder);
-
-        // print the state
-        // printf("State after encoding symbol %zu (%d): %llu\n", i, signal[i], state);
     }
-
-    auto end_loop = std::chrono::high_resolution_clock::now();
-    auto loop_time = std::chrono::duration_cast<std::chrono::microseconds>(end_loop - start_loop).count();
-    printf("[ENCODE] Main encoding loop: %ld μs\n", loop_time);
-
-    auto end_total = std::chrono::high_resolution_clock::now();
-    auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
-    printf("[ENCODE] Total encode time: %ld μs\n", total_time);
-    printf("[ENCODE] Encoded %zu symbols into %zu words\n", signal_size, words.size());
 
     return {state, std::move(words)};
 }
@@ -264,11 +240,6 @@ void ans_decode_t(T* output,
                   const T* symbol_values,
                   size_t num_symbols)
 {
-    auto start_total = std::chrono::high_resolution_clock::now();
-    printf("[DECODE] Starting decode for n=%zu, num_words=%zu, num_symbols=%zu\n", n, num_words, num_symbols);
-
-    auto start_setup = std::chrono::high_resolution_clock::now();
-
     // very important that this is signed, because it becomes -1
     int32_t word_idx = num_words - 1;
     // Calculate index size and verify it's a power of 2
@@ -306,13 +277,7 @@ void ans_decode_t(T* output,
         }
     }
 
-    auto end_setup = std::chrono::high_resolution_clock::now();
-    auto setup_time = std::chrono::duration_cast<std::chrono::microseconds>(end_setup - start_setup).count();
-    printf("[DECODE] Total setup time: %ld μs\n", setup_time);
-
     // Decode symbols in reverse order
-    auto start_loop = std::chrono::high_resolution_clock::now();
-
     for (size_t i = 0; i < n; ++i)
     {
         const uint64_t prefix = state >> PRECISION_BITS;
@@ -336,15 +301,6 @@ void ans_decode_t(T* output,
         state = previous_state;
         output[n - 1 - i] = symbol_value;
     }
-
-    auto end_loop = std::chrono::high_resolution_clock::now();
-    auto loop_time = std::chrono::duration_cast<std::chrono::microseconds>(end_loop - start_loop).count();
-    printf("[DECODE] Main decoding loop: %ld μs\n", loop_time);
-
-    auto end_total = std::chrono::high_resolution_clock::now();
-    auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_total - start_total).count();
-    printf("[DECODE] Total decode time: %ld μs\n", total_time);
-    printf("[DECODE] Decoded %zu symbols from %zu words\n", n, num_words);
 }
 
 }  // namespace simple_ans
