@@ -185,44 +185,6 @@ def py_ans_decode(E: EncodedSignal) -> np.ndarray:
     return output
 
 
-def pack_bitstream(bits: list) -> bytes:
-    """Pack a list of bits into a bytes object.
-
-    Args:
-        bits: List of bits (0s and 1s) to pack.
-
-    Returns:
-        Packed bits as a bytes object.
-    """
-    num_bits = len(bits)
-    num_bytes = (num_bits + 7) // 8
-    x = np.zeros((num_bytes), dtype=np.uint8)
-    for i in range(len(bits)):
-        if bits[i]:
-            a = i // 8
-            b = i % 8
-            x[a] += 2 ** b
-    return x.tobytes()
-
-def unpack_bitstream(bitstream: bytes, num_bits: int) -> list:
-    """Unpack a bitstream back into a list of bits.
-
-    Args:
-        bitstream: Packed bits as a bytes object.
-        num_bits: Number of bits to unpack.
-
-    Returns:
-        List of unpacked bits (0s and 1s).
-    """
-    x = np.frombuffer(bitstream, dtype=np.uint8)
-    bits = []
-    for i in range(num_bits):
-        a = i // 8
-        b = i % 8
-        bits.append((x[a] >> b) % 2)
-    return bits
-
-
 if __name__ == '__main__':
     from simple_ans import ans_encode, ans_decode
 
