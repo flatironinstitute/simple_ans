@@ -28,6 +28,7 @@ endif()
 # Find pybind11
 find_package(pybind11 REQUIRED)
 
+# Add FetchContent module
 include(FetchContent)
 
 # libdivide (header-only) via FetchContent
