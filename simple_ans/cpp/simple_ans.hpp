@@ -6,7 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <vector>
-#include <unordered_map>
+#include <tsl/robin_map.h>
 
 #include "libdivide.h"
 
@@ -145,7 +145,8 @@ EncodedData ans_encode_t(const T* signal,
     }
 
     // Create symbol index lookup
-    std::unordered_map<T, size_t> symbol_index_lookup;
+    tsl::robin_map<T, size_t> symbol_index_lookup;
+    symbol_index_lookup.reserve(num_symbols);
     int64_t min_symbol = symbol_values[0];
     int64_t max_symbol = symbol_values[0];
     for (size_t i = 0; i < num_symbols; ++i)

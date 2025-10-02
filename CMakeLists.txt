@@ -29,21 +29,22 @@ endif()
 find_package(pybind11 REQUIRED)
 
 include(FetchContent)
+
+# libdivide (header-only) via FetchContent
 FetchContent_Declare(
-  emhash
-  GIT_REPOSITORY https://github.com/DiamonDinoia/emhash.git
-  GIT_TAG master
-  GIT_SHALLOW TRUE)
+  libdivide
+  GIT_REPOSITORY https://github.com/ridiculousfish/libdivide
+  GIT_TAG v5.2.0
+)
+FetchContent_MakeAvailable(libdivide)
 
-# Only populate emhash, don't build it
-FetchContent_GetProperties(emhash)
-if(NOT emhash_POPULATED)
-  FetchContent_Populate(emhash)
-endif()
-
-add_library(emhash INTERFACE)
-target_include_directories(emhash INTERFACE ${emhash_SOURCE_DIR})
-target_compile_features(emhash INTERFACE cxx_std_17)
+# tsl::robin_map via FetchContent
+FetchContent_Declare(
+  tsl-robin-map
+  GIT_REPOSITORY https://github.com/Tessil/robin-map.git
+  GIT_TAG v1.4.0
+)
+FetchContent_MakeAvailable(tsl-robin-map)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -66,7 +67,10 @@ pybind11_add_module(_simple_ans ${SOURCES} ${HEADERS})
 
 # Configure include directories
 target_include_directories(_simple_ans PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/simple_ans/cpp)
-target_link_libraries(_simple_ans PRIVATE emhash)
+target_link_libraries(_simple_ans PRIVATE libdivide tsl::robin_map)
+
+# Ensure libdivide headers are on the include path
+target_include_directories(_simple_ans PRIVATE ${libdivide_SOURCE_DIR})
 
 # Set compiler-specific options
 if(MSVC)
