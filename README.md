@@ -112,4 +112,6 @@ The results show that simple_ans achieves the overall highest compression ratios
 
 Jeremy Magland, Center for Computational Mathematics, Flatiron Institute
 
+Marco Barbone, Center for Computational Mathematics, Flatiron Institute
+
 Robert Blackwell, Scientific Computing Core, Flatiron Institute
