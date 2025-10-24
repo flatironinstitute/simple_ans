@@ -69,32 +69,52 @@ The formula for this decoding is
 
 $$x_i = (x_{i+1} // L) \cdot f_{s_i} + (x_{i+1} \text{ mod } L) - C(s_i)$$
 
-## Streaming ANS
+## Practical ANS Implementation
 
-### The Need for Streaming
+### The Need for Bounded State
 In practice, we can't work with arbitrarily large integers. Our state $x$ would grow indefinitely as we encode more symbols, and operating on integers with arbitrarily large precision is very inefficient. We therefore need a way to keep the state within a manageable range while preserving the reversibility of the encoding.
 
-### The Solution: State Normalization
-We'll maintain our state $x$ within the interval $[L, 2L)$ by streaming out some bits to a separate array at each iteration. We need this process to be reversible.
+### Word-Based Streaming with Conditional Normalization
+Instead of normalizing at every step, we use a more efficient approach that only normalizes when necessary. We maintain our state as a 64-bit integer and stream out 32-bit words when the state would overflow.
 
-Let B be an array of bits (bit stream), initialized to the empty array. We'll encode symbol $s$ with state $x$ as follows:
+Let $W$ be an array of 32-bit words, initialized to empty. We define:
+- `STATE_BITS = 64` (total bits for state)
+- `WORD_BITS = 32` (bits per output word)
+- `THRESHOLD = 2^32` (minimum state value after normalization)
 
-### Encoding $s, (x,B) \to (x',B')$
-When encoding symbol $s$ with state $(x, B)$:
-1. Find normalization factor $d$: the unique integer where $x // 2^d \in [f_s, 2f_s)$
-2. Stream out the lower $d$ bits: $V = x \text{ mod } 2^d$ to bitstream $B$ to form $B'$
-3. Use the normalized value to compute next state:
-   $$x' = L + C_s + ((x // 2^d) \text{ mod } f_s)$$
+### Encoding Process
+When encoding symbol $s$ with current state $x$:
 
-### Decoding $(x',B') \to s, (x,B)$
-To reverse the process:
-1. Read the current symbol: $s = T[x']$
-2. Compute the normalized state: $x_2 = f_s + (x' \text{ mod } L) - C[s]$
-3. Find $d$: the unique integer where $x_2 \cdot 2^d \in [L, 2L)$
-4. Read $d$ bits ($V$) from the end of bitstream $B'$ (and remove them to form $B$)
-5. Reconstruct the original state: $x = (x_2 \cdot 2^d) + V$
+1. **Check for normalization**: If $(x >> (64 - l)) \geq f_s$, then:
+   - Extract the lower 32 bits: $w = x \text{ mod } 2^{32}$
+   - Append $w$ to word array $W$
+   - Update state: $x = x >> 32$
 
-With this process, the state stays bounded, and we accumulate a bit stream that represents the compressed version of the original sequence.
+2. **Encode the symbol**:
+   - Compute: $remainder = x \text{ mod } f_s$
+   - Compute: $prefix = x // f_s$
+   - Update state: $x = (prefix << l) | (C_s + remainder)$
+
+The key insight is that normalization only occurs when the next encoding step would cause overflow, making the algorithm more efficient.
+
+### Decoding Process
+To decode from final state $x$ and word array $W$:
+
+1. **Extract symbol**: 
+   - $quantile = x \text{ mod } L$
+   - Find symbol $s$ such that $C_s \leq quantile < C_s + f_s$
+
+2. **Compute previous state**:
+   - $prefix = x >> l$
+   - $previous\_state = prefix \cdot f_s + (quantile - C_s)$
+
+3. **Check for denormalization**: If $previous\_state < THRESHOLD$ and words remain:
+   - Pop word $w$ from end of $W$
+   - Update: $previous\_state = (previous\_state << 32) | w$
+
+4. **Continue**: Set $x = previous\_state$ and repeat
+
+This approach maintains the state above the threshold while efficiently managing memory by streaming out words only when necessary.
 
 ## Optimality of the Compression
 
