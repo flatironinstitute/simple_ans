@@ -1,0 +1,140 @@
+{
+  "ideal_compression_ratio": 7.320477058676053,
+  "results": [
+    {
+      "name": "simple_ans",
+      "compression_ratio": 7.209399903970794,
+      "pct_of_ideal": 98.48265141991513,
+      "encode_time": 0.08682450842350087,
+      "decode_time": 0.05965437608606675,
+      "encode_speed_MBps": 460.69941225458365,
+      "decode_speed_MBps": 670.5291820048495
+    },
+    {
+      "name": "zlib-1",
+      "compression_ratio": 3.797422328710383,
+      "pct_of_ideal": 51.873973489333856,
+      "encode_time": 0.34848618507385254,
+      "decode_time": 0.10652685165405273,
+      "encode_speed_MBps": 114.78216845675831,
+      "decode_speed_MBps": 375.4921822894052
+    },
+    {
+      "name": "zlib-3",
+      "compression_ratio": 4.2730021044535365,
+      "pct_of_ideal": 58.3705415672231,
+      "encode_time": 0.6431686878204346,
+      "decode_time": 0.08698225021362305,
+      "encode_speed_MBps": 62.19208235331187,
+      "decode_speed_MBps": 459.86393662801856
+    },
+    {
+      "name": "zlib-5",
+      "compression_ratio": 4.31632815143751,
+      "pct_of_ideal": 58.96238888313846,
+      "encode_time": 0.9287238121032715,
+      "decode_time": 0.09182429313659668,
+      "encode_speed_MBps": 43.06985508362535,
+      "decode_speed_MBps": 435.61457032396095
+    },
+    {
+      "name": "zlib-7",
+      "compression_ratio": 4.794223535946009,
+      "pct_of_ideal": 65.49058889903918,
+      "encode_time": 4.544263124465942,
+      "decode_time": 0.08433008193969727,
+      "encode_speed_MBps": 8.802307195779061,
+      "decode_speed_MBps": 474.32658761796523
+    },
+    {
+      "name": "zlib-9",
+      "compression_ratio": 4.980704129613859,
+      "pct_of_ideal": 68.0379719749391,
+      "encode_time": 41.28443169593811,
+      "decode_time": 0.0817410945892334,
+      "encode_speed_MBps": 0.9688882311521686,
+      "decode_speed_MBps": 489.349943269155
+    },
+    {
+      "name": "zstd-4",
+      "compression_ratio": 4.540889919065449,
+      "pct_of_ideal": 62.02997267348438,
+      "encode_time": 0.16379809379577637,
+      "decode_time": 0.049706220626831055,
+      "encode_speed_MBps": 244.203086086411,
+      "decode_speed_MBps": 804.7282512243204
+    },
+    {
+      "name": "zstd-7",
+      "compression_ratio": 4.857942821527196,
+      "pct_of_ideal": 66.36101421518259,
+      "encode_time": 0.5807750225067139,
+      "decode_time": 0.039041757583618164,
+      "encode_speed_MBps": 68.8734853426614,
+      "decode_speed_MBps": 1024.5440388878371
+    },
+    {
+      "name": "zstd-10",
+      "compression_ratio": 5.002657661882875,
+      "pct_of_ideal": 68.33786407340551,
+      "encode_time": 1.1320855617523193,
+      "decode_time": 0.035839080810546875,
+      "encode_speed_MBps": 35.333018414337225,
+      "decode_speed_MBps": 1116.100053219798
+    },
+    {
+      "name": "zstd-13",
+      "compression_ratio": 5.077945833805688,
+      "pct_of_ideal": 69.36632398550351,
+      "encode_time": 3.7104902267456055,
+      "decode_time": 0.03354024887084961,
+      "encode_speed_MBps": 10.78024669400172,
+      "decode_speed_MBps": 1192.5969945549411
+    },
+    {
+      "name": "zstd-16",
+      "compression_ratio": 5.812415901607424,
+      "pct_of_ideal": 79.39941420509868,
+      "encode_time": 11.806190967559814,
+      "decode_time": 0.032379150390625,
+      "encode_speed_MBps": 3.3880529384887192,
+      "decode_speed_MBps": 1235.3628652214893
+    },
+    {
+      "name": "zstd-19",
+      "compression_ratio": 5.987891286240964,
+      "pct_of_ideal": 81.79646269288227,
+      "encode_time": 21.77849793434143,
+      "decode_time": 0.03226590156555176,
+      "encode_speed_MBps": 1.8366739579833917,
+      "decode_speed_MBps": 1239.6988169921601
+    },
+    {
+      "name": "zstd-22",
+      "compression_ratio": 6.0240782407281905,
+      "pct_of_ideal": 82.29078777849045,
+      "encode_time": 28.668030977249146,
+      "decode_time": 0.03276324272155762,
+      "encode_speed_MBps": 1.395282432607383,
+      "decode_speed_MBps": 1220.8803731652827
+    },
+    {
+      "name": "lzma",
+      "compression_ratio": 5.650930708287655,
+      "pct_of_ideal": 77.19347609443442,
+      "encode_time": 3.414332389831543,
+      "decode_time": 0.43863654136657715,
+      "encode_speed_MBps": 11.715321015354784,
+      "decode_speed_MBps": 91.19167289478334
+    },
+    {
+      "name": "blosc",
+      "compression_ratio": 6.377827609870836,
+      "pct_of_ideal": 87.12311450128772,
+      "encode_time": 0.0191805362701416,
+      "decode_time": 0.022696733474731445,
+      "encode_speed_MBps": 2085.4474263197803,
+      "decode_speed_MBps": 1762.3681418532096
+    }
+  ]
+}
